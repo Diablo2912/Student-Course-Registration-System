@@ -30,8 +30,6 @@ class Student():
         pattern = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
         return re.match(pattern, email) is not None
 
-    # def add_course(self):
-
     # def format(self):
     #     print(f"Student ID: {self.student_id}")
     #     print(f"Student Name: {self.student_name}")
@@ -115,7 +113,7 @@ def menu():
         elif choice == "8":
             login()
         elif choice == "9":
-            print("Exiting the programme")
+            print("Exiting the programme...")
             logging.info(f"User has exited the programme")
             break
         else:
@@ -181,20 +179,21 @@ def add_student():
             logging.error("Invalid email format input entered.")
 
     course = input("Enter Course List (comma-separated): ").split(",")
+    uppercase_list = [item.upper() for item in course]
 
     while True:
         try:
             year = int(input("Enter Student Year of Study [1-3]: "))
 
             if year > 3 or year < 1:
-                print(Fore.RED + "Invalid year of study. Enter valid Year of Study" + Style.RESET_ALL)
+                print(Fore.RED + "Invalid year of study. Enter a valid Year of Study" + Style.RESET_ALL)
                 logging.warning(f"Invalid year entered: {year}.")
             else:
                 break
 
         except ValueError:
-            print("Invalid input. Please enter a valid numeric year of study.")
-            logging.error("Invalid year of study input: non-numeric value entered.")
+            print("Invalid input. Please enter a valid year of study.")
+            logging.error("Invalid year of study input.")
 
     status_input = input("Enter Student Status, Full-Time [1] / Part-time [2]: ")
 
@@ -211,12 +210,12 @@ def add_student():
         "Student ID": student_id,
         "Student Name": student_name,
         "Email": email,
-        "Courses": course,
+        "Courses": uppercase_list,
         "Year": year,
         "Full-Time": status
     })
 
-    logging.info(f"New student added: {student_id}, Name: {student_name}, Email: {email}, Course: {course}, Year: {year}, Full-Time: {status}")
+    logging.info(f"New student added: ID: {student_id}, Name: {student_name}, Email: {email}, Course: {course}, Year: {year}, Full-Time: {status}")
     print(Fore.GREEN + f"Student {student_name} added successfully. \n" + Style.RESET_ALL)
 
 
