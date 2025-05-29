@@ -9,15 +9,28 @@ from tabulate import tabulate
 logging.basicConfig(filename='student_registration.log',
                     level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s')
+#debug
+#info
+#warning
+#erro
+#critical
 
 class Student():
-    def __init__(self,student_id, student_name, email, course_list, year, status):
+    def __init__(self,student_id, student_name, email, course, year, status):
         self.student_id = student_id
         self.student_name = student_name
         self.email = email
-        self.course_list = course_list
+        self.course = course
         self.year = year
         self.status = status
+
+    @staticmethod
+    def validate_email(email):
+        """Validate if the email is in the correct format."""
+        pattern = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
+        return re.match(pattern, email) is not None
+
+    # def add_course(self):
 
     # def format(self):
     #     print(f"Student ID: {self.student_id}")
@@ -27,11 +40,7 @@ class Student():
     #     print(f"Year of Study: {self.year}")
     #     print(f"Full-time/Part-time: {'Full-time' if self.status else 'Part-time'}")
 
-    @staticmethod
-    def validate_email(email):
-        """Validate if the email is in the correct format."""
-        pattern = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
-        return re.match(pattern, email) is not None
+
 
 # students = [
 #     {
@@ -56,6 +65,22 @@ students = [
         "Courses": ["IT111", "SF102"],
         "Year": 2,
         "Full-Time": True
+    },
+    {
+        "Student ID": 1,
+        "Student Name": "Karina",
+        "Email": "alice.green@poly.edu",
+        "Courses": ["IT101", "SF100"],
+        "Year": 1,
+        "Full-Time": True
+    },
+    {
+        "Student ID": 2,
+        "Student Name": "Winter",
+        "Email": "bob.white@poly.edu",
+        "Courses": ["IT202", "SF205"],
+        "Year": 3,
+        "Full-Time": False
     }
 ]
 
@@ -67,7 +92,7 @@ def menu():
             Fore.MAGENTA + "--- Student Course Registration System --- \n" + Style.RESET_ALL +
             "1: Display all student records \n"
             "2: Add a new student record \n"
-            "3: Enrol student for a new course \n"
+            "3: Enroll student for a new course \n"
             "4: Sort students by Year of Study \n"
             "5: Sort students by Num of Registered Course \n"
             "6: Search for a student by ID or Name \n"
@@ -82,7 +107,7 @@ def menu():
         elif choice == "2":
             add_student()
         elif choice == "3":
-            enrol_student()
+            enroll_student()
         elif choice == "4":
             sort_year()
         elif choice == "5":
@@ -95,13 +120,15 @@ def menu():
             login()
         elif choice == "9":
             print("Exiting the programme")
+            logging.info(f"User has exited the programme")
             break
         else:
-            print("Invalid Option, Try Again")
+            print(Fore.RED + "Invalid Option, Try Again \n" + Style.RESET_ALL)
+            logging.warning(f"Invalid menu option entered")
 
 def display_all():
     if not students:
-        print("No students found.")
+        print(Fore.RED + "No students found." + Style.RESET_ALL)
         return
 
     print("Display Of All Student Records: \n" + tabulate(students, headers="keys", tablefmt="fancy_grid"))
@@ -110,38 +137,52 @@ def display_all():
 def add_student():
     while True:
         try:
-            student_id = int(input("Enter Student ID: "))  # This will not be affected by Fore.RED
+            student_id = int(input("Enter Student ID: "))
 
             for student in students:
                 if student["Student ID"] == student_id:
                     # Error message in red
                     print(Fore.RED + f"Student ID {student_id} already exists. Please enter a unique ID." + Style.RESET_ALL)
+                    logging.warning(f"Attempted to add student with an existing ID: {student_id}")
                     break  # for when duplicate is found exit for
             else:
                 break  # when no duplicate is found exit while
 
         except ValueError:
-            print("Invalid Student ID input. Try again")
+            print(Fore.RED + "Invalid Student ID input. Try again" +Style.RESET_ALL)
+            logging.error("Invalid Student ID input: non-numeric value entered.")
 
-    student_name = input("Enter Student Name: ")
+    while True:
+
+        student_name = input("Enter Student Name: ")
+
+        if not student_name:
+            print(Fore.RED + "Invalid student name entered. Please enter a valid name" + Style.RESET_ALL)
+            logging.error("Attempted to add student with an invalid name.")
+
+        else:
+            break
 
     while True:
         try:
             email = input("Enter Student Email: ")
 
             if not Student.validate_email(email):
-                print("Invalid email format. Please enter a valid email.")
+                print(Fore.RED + "Invalid email format. Please enter a valid email." + Style.RESET_ALL)
+                logging.warning(f"Invalid email format entered: {email}")
                 continue  # if email not valid keep asking
 
             email_exists = any(student["Email"].lower() == email.lower() for student in students)
             if email_exists:
-                print(f"Email {email} already exists. Please enter a unique email.")
+                print(Fore.RED + f"Email {email} already exists. Please enter a unique email." + Style.RESET_ALL)
+                logging.warning(f"Attempted to add student with an existing email: {email}")
                 continue
 
             break  # if email valid break
 
         except ValueError:
-            print("Invalid email format. Please enter a valid email.")
+            print(Fore.RED + "Invalid email format. Please enter a valid email." + Style.RESET_ALL)
+            logging.error("Invalid email format input entered.")
 
     course = input("Enter Course List (comma-separated): ").split(",")
 
@@ -150,13 +191,14 @@ def add_student():
             year = int(input("Enter Student Year of Study [1-3]: "))
 
             if year > 3 or year < 1:
-                print("Invalid year of study. Enter valid Year of Study")
-
+                print(Fore.RED + "Invalid year of study. Enter valid Year of Study" + Style.RESET_ALL)
+                logging.warning(f"Invalid year entered: {year}.")
             else:
                 break
 
         except ValueError:
-            print(year)
+            print("Invalid input. Please enter a valid numeric year of study.")
+            logging.error("Invalid year of study input: non-numeric value entered.")
 
     status_input = input("Enter Student Status, Full-Time [1] / Part-time [2]: ")
 
@@ -166,6 +208,7 @@ def add_student():
         status = False
     else:
         print("Invalid status input. Please enter 1 or 2.")
+        logging.warning(f"Invalid status input entered: {status_input}.")
         return
 
     students.append({
@@ -177,12 +220,61 @@ def add_student():
         "Full-Time": status
     })
 
-    print(f"Student {student_name} added successfully. \n")
+    logging.info(f"New student added: {student_id}, Name: {student_name}, Email: {email}, Course: {course}, Year: {year}, Full-Time: {status}")
+    print(Fore.GREEN + f"Student {student_name} added successfully. \n" + Style.RESET_ALL)
 
 
-#
-# def enrol_student():
-#
+def enroll_student():
+    while True:
+        try:
+            student_input = input("Enter student ID (Enter 'E' to exit): ")
+
+            # Exit the process if user enters 'E'
+            if student_input == 'E':
+                print(Fore.GREEN + "Exiting the enrollment process..." + Style.RESET_ALL)
+                break
+
+            student_id = int(student_input)  # Convert to int if not 'E'
+            logging.info(f"User has started to enroll student {student_id} into course")
+
+            student = None
+            # Find the student in the list based on student ID
+            for s in students:
+                if s["Student ID"] == student_id:
+                    student = s
+                    print(
+                        Fore.GREEN + f"Student {student['Student Name']}, ID: {student_id} has been chosen" + Style.RESET_ALL)
+                    break
+
+            if not student:
+                logging.warning(f"Tried to enroll invalid student, ID: {student_id} into a course.")
+                print(Fore.RED + "Student ID not found." + Style.RESET_ALL)
+                continue  # Ask for student ID again
+
+            while True:
+                course = input("Enter course code (Enter 'E' to exit): ")
+
+                if course == "E":
+                    print(Fore.GREEN + "Exiting the enrollment process..." + Style.RESET_ALL)
+                    return
+
+                if not re.match(r'^[A-Za-z]{2}\d{3}$', course):
+                    print(
+                        Fore.RED + "Invalid course code. Please enter a valid course code." + Style.RESET_ALL)
+                    continue
+
+                # Check if the student is already enrolled in the course
+                if course in student["Courses"]:
+                    print(Fore.RED + f"Student {student['Student Name']} (ID: {student_id}) is already enrolled in {course}." + Style.RESET_ALL)
+                    continue  # Ask for a new course if already enrolled
+
+                student["Courses"].append(course)
+                print(Fore.GREEN + f"Student {student['Student Name']}, ID: {student_id} has been successfully enrolled in {course}.\n" + Style.RESET_ALL)
+                break  # Exit the course enrollment loop after successful enrollment
+
+        except ValueError:
+            print(Fore.RED + "Invalid Student ID, Enter a valid student ID" + Style.RESET_ALL)
+
 # bubble sort - ascending
 def sort_year():
     sorted_students = list(students.values())
@@ -215,6 +307,7 @@ def export():
         df.to_csv('students.csv', index=False)
 
         print("Data has been successfully exported to 'students.csv'. \n")
+        logging.info(f"Data has been successfully imported to 'students.csv'")
     else:
         print("You are not logged in \n")
 
