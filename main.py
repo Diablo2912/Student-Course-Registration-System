@@ -9,11 +9,6 @@ from tabulate import tabulate
 logging.basicConfig(filename='student_registration.log',
                     level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s')
-#debug
-#info
-#warning
-#error
-#critical
 
 class Student():
     def __init__(self,student_id, student_name, email, course, year, status):
@@ -48,7 +43,7 @@ students = [
         "Student ID":10001,
         "Student Name": "Alice Boo",
         "Email": "alice.boo@poly.edu",
-        "Courses": ["IT101", "CS112"],
+        "Courses": ["IT101"],
         "Year": 1,
         "Full-Time": True
     },
@@ -61,18 +56,18 @@ students = [
         "Full-Time": True
     },
     {
-        "Student ID": 1,
+        "Student ID": 10002,
         "Student Name": "Karina",
         "Email": "alice.green@poly.edu",
-        "Courses": ["IT101", "SF100"],
+        "Courses": ["IT101", "SF100", "CS242", "IT200"],
         "Year": 1,
         "Full-Time": True
     },
     {
-        "Student ID": 2,
+        "Student ID": 10003,
         "Student Name": "Winter",
         "Email": "bob.white@poly.edu",
-        "Courses": ["IT202", "SF205"],
+        "Courses": ["IT202", "SF205", "CS500"],
         "Year": 3,
         "Full-Time": False
     }
@@ -107,7 +102,7 @@ def menu():
         elif choice == "5":
             sort_course()
         elif choice == "6":
-            print("6")
+            search()
         elif choice == "7":
             export()
         elif choice == "8":
@@ -117,7 +112,7 @@ def menu():
             logging.info(f"User has exited the programme")
             break
         else:
-            print(Fore.RED + "Invalid Option, Try Again \n" + Style.RESET_ALL)
+            print(Fore.RED + "Invalid Option, Please enter an input from 1-9 \n" + Style.RESET_ALL)
             logging.warning(f"Invalid menu option entered")
 
 def display_all():
@@ -138,9 +133,9 @@ def add_student():
                     # Error message in red
                     print(Fore.RED + f"Student ID {student_id} already exists. Please enter a unique ID." + Style.RESET_ALL)
                     logging.warning(f"Attempted to add student with an existing ID: {student_id}")
-                    break  # for when duplicate is found exit for
+                    break  # when duplicate is found exit for loop
             else:
-                break  # when no duplicate is found exit while
+                break  # when no duplicate is found exit while loop
 
         except ValueError:
             print(Fore.RED + "Invalid Student ID input. Try again" +Style.RESET_ALL)
@@ -192,7 +187,7 @@ def add_student():
                 break
 
         except ValueError:
-            print("Invalid input. Please enter a valid year of study.")
+            print(Fore.RED + "Invalid year of study. Enter a valid Year of Study" + Style.RESET_ALL)
             logging.error("Invalid year of study input.")
 
     status_input = input("Enter Student Status, Full-Time [1] / Part-time [2]: ")
@@ -218,7 +213,7 @@ def add_student():
     logging.info(f"New student added: ID: {student_id}, Name: {student_name}, Email: {email}, Course: {course}, Year: {year}, Full-Time: {status}")
     print(Fore.GREEN + f"Student {student_name} added successfully. \n" + Style.RESET_ALL)
 
-
+#enroll students by selecting ID
 def enroll_student():
     while True:
         try:
@@ -258,7 +253,7 @@ def enroll_student():
 
                 # Check if the student is already enrolled in the course
                 if course.upper() in student["Courses"]:
-                    print(Fore.RED + f"Student {student['Student Name']} (ID: {student_id}) is already enrolled in {course.upper()}." + Style.RESET_ALL)
+                    print(Fore.RED + f"Student {student['Student Name']} ID: {student_id} is already enrolled in {course.upper()}." + Style.RESET_ALL)
                     continue  # Ask for a new course if already enrolled
 
                 student["Courses"].append(course.upper())
@@ -271,31 +266,43 @@ def enroll_student():
         except ValueError:
             print(Fore.RED + "Invalid Student ID, Enter a valid student ID" + Style.RESET_ALL)
 
-# bubble sort - ascending
+#bubble sort - ascending
+#sort by year of study
 def sort_year():
-    sorted_students = list(students.values())
-    n = len(sorted_students)
+    n = len(students)
     for i in range(n):
         for j in range(0, n - i - 1):
-            if sorted_students[j]["Year"] > sorted_students[j + 1]["Year"]:
-                sorted_students[j], sorted_students[j + 1] = sorted_students[j + 1], sorted_students[j]
-#
-# selection sort - descending
-def sort_course():
-    sorted_students = list(students.values())
-    n = len(sorted_students)
-    for i in range(n -1 ):
-        min_idx = i
-        for j in range(i+1, n):
-            if sorted_students[j] < sorted_students[min_idx]:
-                min_idx = j
-        sorted_students[i], sorted_students[min_idx] = sorted_students[min_idx], sorted_students[i]
+            if students[j]["Year"] > students[j + 1]["Year"]:
+                students[j], students[j + 1] = students[j + 1], students[j]
 
+    print("Sorted by Year Of Study in Ascending Order: \n" + tabulate(students, headers="keys", tablefmt="fancy_grid"))
 #
+#selection sort - descending
+#sort by num of registered courses
+def sort_course():
+    n = len(students)
+    for i in range(n - 1):
+        max_idx = i #use max instead of min due to descending
+        for j in range(i + 1, n):
+            if len(students[j]['Courses']) > len(students[max_idx]['Courses']): #use len as comparing by no of
+                max_idx = j
+        students[i], students[max_idx] = students[max_idx], students[i]
+
+    print("Sorted by Num of Registered Courses in Descending Order: \n" + tabulate(students, headers="keys", tablefmt="fancy_grid"))
+
+
 #search by student id or student name
-# def search():
-#
-#import panda - export to csv
+def search():
+    search_input = input("Enter Student ID or Student Name: ").strip()
+    for student in students:
+        if str(student["Student ID"]) == search_input or student["Student Name"].lower() == search_input.lower():
+            print("\nSearched Student Details:\n" + tabulate([student], headers="keys", tablefmt="fancy_grid"))
+            break  # stop after first match
+    else:
+        logging.warning(f"Student with ID or name {search_input} not found.")
+        print(Fore.RED + "Student not found." + Style.RESET_ALL)
+
+#import pandas - export to csv
 def export():
     if logged_in == True:
         df = pd.DataFrame(students)
@@ -303,7 +310,7 @@ def export():
         df.to_csv('students.csv', index=False)
 
         print("Data has been successfully exported to 'students.csv'. \n")
-        logging.info(f"Data has been successfully imported to 'students.csv'")
+        logging.info(f"Data has been successfully exported to 'students.csv'")
     else:
         print("You are not logged in \n")
 
