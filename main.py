@@ -130,6 +130,7 @@ def add_student():
 
             if len(student_id) != 5:
                 print(Fore.RED + "Invalid Student ID input. Enter a 5 digit Student ID" + Style.RESET_ALL)
+                continue
 
             student_id = int(student_id)
 
