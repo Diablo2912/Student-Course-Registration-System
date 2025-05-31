@@ -126,7 +126,12 @@ def display_all():
 def add_student():
     while True:
         try:
-            student_id = int(input("Enter Student ID: "))
+            student_id = (input("Enter Student ID: "))
+
+            if len(student_id) != 5:
+                print(Fore.RED + "Invalid Student ID input. Enter a 5 digit Student ID" + Style.RESET_ALL)
+
+            student_id = int(student_id)
 
             for student in students:
                 if student["Student ID"] == student_id:
@@ -134,6 +139,7 @@ def add_student():
                     print(Fore.RED + f"Student ID {student_id} already exists. Please enter a unique ID." + Style.RESET_ALL)
                     logging.warning(f"Attempted to add student with an existing ID: {student_id}")
                     break  # when duplicate is found exit for loop
+
             else:
                 break  # when no duplicate is found exit while loop
 
@@ -144,6 +150,7 @@ def add_student():
     while True:
 
         student_name = input("Enter Student Name: ")
+        capitalised_name = student_name.title()
 
         if not student_name:
             print(Fore.RED + "Invalid student name entered. Please enter a valid name" + Style.RESET_ALL)
@@ -173,8 +180,14 @@ def add_student():
             print(Fore.RED + "Invalid email format. Please enter a valid email." + Style.RESET_ALL)
             logging.error("Invalid email format input entered.")
 
-    course = input("Enter Course List (comma-separated): ").split(",")
-    uppercase_list = [item.upper() for item in course]
+    while True:
+        courses = input("Enter Course List (comma-separated): ").strip().upper().split(",")
+        courses = [c.strip() for c in courses]  # remove extra spaces
+
+        if (re.fullmatch(r'[A-Z]{2}\d{3}', c) for c in courses):
+            break
+        else:
+            print("Invalid input. Each course must have 2 letters followed by 3 digits. Try again.")
 
     while True:
         try:
@@ -203,68 +216,119 @@ def add_student():
 
     students.append({
         "Student ID": student_id,
-        "Student Name": student_name,
+        "Student Name": capitalised_name,
         "Email": email,
-        "Courses": uppercase_list,
+        "Courses": courses,
         "Year": year,
         "Full-Time": status
     })
 
-    logging.info(f"New student added: ID: {student_id}, Name: {student_name}, Email: {email}, Course: {course}, Year: {year}, Full-Time: {status}")
-    print(Fore.GREEN + f"Student {student_name} added successfully. \n" + Style.RESET_ALL)
+    logging.info(f"New student added: ID: {student_id}, Name: {capitalised_name}, Email: {email}, Course: {courses}, Year: {year}, Full-Time: {status}")
+    print(Fore.GREEN + f"Student {capitalised_name} added successfully. \n" + Style.RESET_ALL)
 
 #enroll students by selecting ID
+# def enroll_student():
+#     while True:
+#         try:
+#             student_input = input("Enter student ID (Enter 'E' to exit): ")
+#
+#             # Exit the process if user enters 'E'
+#             if student_input == 'E':
+#                 print(Fore.GREEN + "Exiting the enrollment process..." + Style.RESET_ALL)
+#                 break
+#
+#             student_id = int(student_input)  # Convert to int if not 'E'
+#             logging.info(f"User has started to enroll student {student_id} into course")
+#
+#             student = None
+#             # Find the student in the list based on student ID
+#             for s in students:
+#                 if s["Student ID"] == student_id:
+#                     student = s
+#                     print(Fore.GREEN + f"Student {student['Student Name']}, ID: {student_id} has been chosen" + Style.RESET_ALL)
+#                     break
+#
+#             if not student:
+#                 logging.warning(f"Tried to enroll invalid student, ID: {student_id} into a course.")
+#                 print(Fore.RED + "Student ID not found." + Style.RESET_ALL)
+#                 continue  # Ask for student ID again
+#
+#             while True:
+#                 course = input("Enter course code (Enter 'E' to exit): ")
+#
+#                 if course == "E":
+#                     print(Fore.GREEN + "Exiting the enrollment process..." + Style.RESET_ALL)
+#                     return
+#
+#                 if not re.match(r'^[A-Za-z]{2}\d{3}$', course):
+#                     print(Fore.RED + "Invalid course code. Please enter a valid course code." + Style.RESET_ALL)
+#                     continue
+#
+#                 # Check if the student is already enrolled in the course
+#                 if course.upper() in student["Courses"]:
+#                     print(Fore.RED + f"Student {student['Student Name']} ID: {student_id} is already enrolled in {course.upper()}." + Style.RESET_ALL)
+#                     continue  # Ask for a new course if already enrolled
+#
+#                 student["Courses"].append(course.upper())
+#                 print(Fore.GREEN + f"Student {student['Student Name']}, ID: {student_id} has been successfully enrolled in {course.upper()}.\n" + Style.RESET_ALL)
+#                 logging.info(f"Student {student['Student Name']}, ID: {student_id} has been successfully enrolled in {course.upper()}")
+#                 break  # Exit the course enrollment loop after successful enrollment
+#
+#             break
+#
+#         except ValueError:
+#             print(Fore.RED + "Invalid Student ID, Enter a valid student ID" + Style.RESET_ALL)
 def enroll_student():
     while True:
         try:
             student_input = input("Enter student ID (Enter 'E' to exit): ")
 
-            # Exit the process if user enters 'E'
-            if student_input == 'E':
+            if student_input.upper() == 'E':
                 print(Fore.GREEN + "Exiting the enrollment process..." + Style.RESET_ALL)
                 break
 
-            student_id = int(student_input)  # Convert to int if not 'E'
-            logging.info(f"User has started to enroll student {student_id} into course")
+            student_id = int(student_input)
+            logging.info(f"User has started to enroll student {student_id} into courses")
 
-            student = None
-            # Find the student in the list based on student ID
-            for s in students:
-                if s["Student ID"] == student_id:
-                    student = s
-                    print(Fore.GREEN + f"Student {student['Student Name']}, ID: {student_id} has been chosen" + Style.RESET_ALL)
-                    break
+            student = next((s for s in students if s["Student ID"] == student_id), None)
 
             if not student:
-                logging.warning(f"Tried to enroll invalid student, ID: {student_id} into a course.")
+                logging.warning(f"Tried to enroll invalid student, ID: {student_id}")
                 print(Fore.RED + "Student ID not found." + Style.RESET_ALL)
-                continue  # Ask for student ID again
+                continue
+
+            print(Fore.GREEN + f"Student {student['Student Name']}, ID: {student_id} has been chosen." + Style.RESET_ALL)
 
             while True:
-                course = input("Enter course code (Enter 'E' to exit): ")
+                courses_input = input("Enter course codes separated by spaces (Enter 'E' to exit): ")
 
-                if course == "E":
+                if not courses_input:
+                    print(Fore.RED + "Invalid Course Code. Please enter a valid Course Code." + Style.RESET_ALL)
+                    continue
+
+                if courses_input == "E":
                     print(Fore.GREEN + "Exiting the enrollment process..." + Style.RESET_ALL)
                     return
 
-                if not re.match(r'^[A-Za-z]{2}\d{3}$', course):
-                    print(Fore.RED + "Invalid course code. Please enter a valid course code." + Style.RESET_ALL)
-                    continue
+                courses = courses_input.strip().split()
 
-                # Check if the student is already enrolled in the course
-                if course.upper() in student["Courses"]:
-                    print(Fore.RED + f"Student {student['Student Name']} ID: {student_id} is already enrolled in {course.upper()}." + Style.RESET_ALL)
-                    continue  # Ask for a new course if already enrolled
+                for course in courses:
+                    course = course.upper()
 
-                student["Courses"].append(course.upper())
-                print(Fore.GREEN + f"Student {student['Student Name']}, ID: {student_id} has been successfully enrolled in {course.upper()}.\n" + Style.RESET_ALL)
-                logging.info(f"Student {student['Student Name']}, ID: {student_id} has been successfully enrolled in {course.upper()}")
-                break  # Exit the course enrollment loop after successful enrollment
+                    if not re.match(r'^[A-Z]{2}\d{3}$', course):
+                        print(Fore.RED + f"Invalid course code: {course}. Must be in format like 'CS101'." + Style.RESET_ALL)
+                        continue
 
-            break
+                    if course in student["Courses"]:
+                        print(Fore.RED + f"Student {student['Student Name']}, ID: {student_id} is already enrolled in {course}." + Style.RESET_ALL)
+                        continue
+
+                    student["Courses"].append(course)
+                    print(Fore.GREEN + f"Student {student['Student Name']}, ID: {student_id} has been successfully enrolled in {course}." + Style.RESET_ALL)
+                    logging.info(f"Student {student['Student Name']}, ID: {student_id} enrolled in {course}")
 
         except ValueError:
-            print(Fore.RED + "Invalid Student ID, Enter a valid student ID" + Style.RESET_ALL)
+            print(Fore.RED + "Invalid Student ID. Please enter a valid student ID." + Style.RESET_ALL)
 
 #bubble sort - ascending
 #sort by year of study
