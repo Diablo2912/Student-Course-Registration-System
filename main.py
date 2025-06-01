@@ -37,15 +37,15 @@ class Student():
 
 # students = [ ]
 
-# #sample student dict for testing
+# Sample student list for testing and demonstration
 students = [
     {
-        "Student ID":10001,
+        "Student ID": 10001,
         "Student Name": "Alice Boo",
         "Email": "alice.boo@poly.edu",
         "Courses": ["IT101"],
         "Year": 1,
-        "Full-Time": True
+        "Status": True
     },
     {
         "Student ID": 10045,
@@ -53,29 +53,93 @@ students = [
         "Email": "johan.pow@poly.edu",
         "Courses": ["IT111", "SF102"],
         "Year": 2,
-        "Full-Time": True
+        "Status": True
     },
     {
         "Student ID": 10002,
         "Student Name": "Karina",
-        "Email": "alice.green@poly.edu",
+        "Email": "karina@poly.edu",
         "Courses": ["IT101", "SF100", "CS242", "IT200"],
         "Year": 1,
-        "Full-Time": True
+        "Status": True
     },
     {
         "Student ID": 10003,
         "Student Name": "Winter",
-        "Email": "bob.white@poly.edu",
+        "Email": "winter@poly.edu",
         "Courses": ["IT202", "SF205", "CS500"],
         "Year": 3,
-        "Full-Time": False
+        "Status": False
+    },
+    {
+        "Student ID": 10005,
+        "Student Name": "Cristiano Ronaldo",
+        "Email": "crstiano@poly.edu",
+        "Courses": ["IT100", "SF209", "CS505"],
+        "Year": 3,
+        "Status": False
     }
 ]
 
 admin = {"admin01": "admin01", "admin02": "admin02"}
+user = {"user01": "user01", "user02": "user02"}
 
-def menu():
+def login():
+    global admin_logged_in, user_logged_in
+    attempt_counter = 0
+    max_attempts = 2
+
+    while attempt_counter < max_attempts:
+        try:
+            # Ensure username isn't empty
+            username = input(Fore.CYAN + "Enter Username: " + Style.RESET_ALL)
+            while not username:  # Check if the username is empty
+                print(Fore.RED + "Invalid Username. Please try again" + Style.RESET_ALL)
+                username = input(Fore.CYAN + "Enter Username: " + Style.RESET_ALL)
+
+            # Password attempt counter
+            password_attempts = 0
+            while password_attempts < max_attempts:
+                password = input(Fore.CYAN + "Enter Password: " + Style.RESET_ALL)
+
+                if username in admin and admin[username] == password:
+                    admin_logged_in = True
+                    print(Fore.GREEN + f"{username} has logged in successfully as an Admin! \n" + Style.RESET_ALL)
+                    admin_menu()
+                    return  # Exit after successful login
+
+                elif username in user and user[username] == password:
+                    user_logged_in = True
+                    print(Fore.GREEN + f"{username} has logged in successfully as a User! \n" + Style.RESET_ALL)
+                    user_menu()
+                    return  # Exit after successful login
+
+                else:
+                    print(Fore.RED + "Invalid Password. Please try again." + Style.RESET_ALL)
+                    password_attempts += 1
+
+            print(Fore.RED + "Too many failed password attempts. Login locked." + Style.RESET_ALL)
+            return  # Exit after failed password attempts
+
+        except ValueError:
+            print(Fore.RED + "Invalid Input" + Style.RESET_ALL)
+            attempt_counter += 1
+
+    # If the user exceeds the attempt limit for username
+    print(Fore.RED + "Too many failed login attempts.\n" + Style.RESET_ALL)
+
+def admin_logout():
+    admin_logged_in = False
+    print(Fore.GREEN + "You have successfully logged out! \n")
+    login()
+
+def user_logout():
+    user_logged_in = False
+    print(Fore.GREEN + "You have successfully logged out! \n")
+    login()
+
+
+def admin_menu():
     while True:
         print(
             Fore.MAGENTA + "--- Student Course Registration System --- \n" + Style.RESET_ALL +
@@ -87,7 +151,8 @@ def menu():
             "6: Search for a student by ID or Name \n"
             "7: Export student data to CSV \n"
             "8: Login  \n"
-            "9: Exit the program "
+            "9: Logout \n"
+            "0: Exit the program "
         )
 
         choice = input("Enter your choice: ")
@@ -108,6 +173,33 @@ def menu():
         elif choice == "8":
             login()
         elif choice == "9":
+            admin_logout()
+        elif choice == "0":
+            print("Exiting the programme...")
+            logging.info(f"Admin has exited the programme")
+            break
+        else:
+            print(Fore.RED + "Invalid Option, Please enter an input from 1-9 \n" + Style.RESET_ALL)
+            logging.warning(f"Invalid menu option entered")
+
+def user_menu():
+    while True:
+        print(
+            Fore.MAGENTA + "--- Student Course Registration System --- \n" + Style.RESET_ALL +
+            "1: Display all student records \n"
+            "2: Search for a student by ID or Name \n"
+            "3: Logout  \n"
+            "0: Exit the program "
+        )
+
+        choice = input("Enter your choice: ")
+        if choice == "1":
+            display_all()
+        elif choice == "2":
+            search()
+        elif choice == "3":
+            user_logout()
+        elif choice == "0":
             print("Exiting the programme...")
             logging.info(f"User has exited the programme")
             break
@@ -119,6 +211,9 @@ def display_all():
     if not students:
         print(Fore.RED + "No students found." + Style.RESET_ALL)
         return
+
+    for student in students:
+        student["Status"] = "Full-Time" if student["Status"] else "Part-Time"
 
     print("Display Of All Student Records: \n" + tabulate(students, headers="keys", tablefmt="fancy_grid"))
 
@@ -204,16 +299,24 @@ def add_student():
             print(Fore.RED + "Invalid year of study. Enter a valid Year of Study" + Style.RESET_ALL)
             logging.error("Invalid year of study input.")
 
-    status_input = input("Enter Student Status, Full-Time [1] / Part-time [2]: ")
+    while True:
+        try:
+            status_input = input("Enter Student Status, Full-Time [1] / Part-time [2]: ")
 
-    if status_input == "1":
-        status = True
-    elif status_input == "2":
-        status = False
-    else:
-        print("Invalid status input. Please enter 1 or 2.")
-        logging.warning(f"Invalid status input entered: {status_input}.")
-        return
+            if status_input == "1":
+                status = True
+                break
+            elif status_input == "2":
+                status = False
+                break
+            else:
+                print("Invalid status input. Please enter 1 or 2.")
+                logging.warning(f"Invalid status input entered: {status_input}.")
+                continue
+
+        except ValueError:
+            print(Fore.RED + "Invalid status. Enter a valid Year of Study" + Style.RESET_ALL)
+            logging.error("Invalid status input")
 
     students.append({
         "Student ID": student_id,
@@ -221,13 +324,13 @@ def add_student():
         "Email": email,
         "Courses": courses,
         "Year": year,
-        "Full-Time": status
+        "Status": status
     })
 
-    logging.info(f"New student added: ID: {student_id}, Name: {capitalised_name}, Email: {email}, Course: {courses}, Year: {year}, Full-Time: {status}")
+    logging.info(f"New student added: ID: {student_id}, Name: {capitalised_name}, Email: {email}, Course: {courses}, Year: {year}, Status: {status}")
     print(Fore.GREEN + f"Student {capitalised_name} added successfully. \n" + Style.RESET_ALL)
 
-#enroll students by selecting ID
+# Initial Enrollment code - commented if new code malfunctions
 # def enroll_student():
 #     while True:
 #         try:
@@ -369,26 +472,17 @@ def search():
 
 #import pandas - export to csv
 def export():
-    if logged_in == True:
-        df = pd.DataFrame(students)
+    df = pd.DataFrame(students)
 
-        df.to_csv('students.csv', index=False)
+    df.to_csv('students.csv', index=False)
 
-        print("Data has been successfully exported to 'students.csv'. \n")
-        logging.info(f"Data has been successfully exported to 'students.csv'")
-    else:
-        print("You are not logged in \n")
+    print("Data has been successfully exported to 'students.csv'. \n")
+    logging.info(f"Data has been successfully exported to 'students.csv'")
 
-logged_in = False
+    print(Fore.RED + "You are not Logged In!" + Style.RESET_ALL)
 
-def login():
-    global logged_in
-    username = input("Enter Username: ")
-    password = input("Enter Password: ")
-    if username in admin and admin[username] == password:
-        logged_in = True
-        print(f"{username} has logged in successfully! \n")
+
 
 
 if __name__ == "__main__":
-    menu()
+    login()
