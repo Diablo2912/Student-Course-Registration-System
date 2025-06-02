@@ -1,9 +1,12 @@
+import numpy as np
 import pandas as pd
 import logging
 import re
 import colorama
 from colorama import Fore, Back, Style
 from tabulate import tabulate
+import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
 
 #logging
 logging.basicConfig(filename='student_registration.log',
@@ -34,10 +37,11 @@ class Student():
     #     print(f"Full-time/Part-time: {'Full-time' if self.status else 'Part-time'}")
 
 
-
+# Empty student list to start from scratch
 # students = [ ]
 
 # Sample student list for testing and demonstration
+# Comment away if not needed
 students = [
     {
         "Student ID": 10001,
@@ -81,23 +85,37 @@ students = [
     }
 ]
 
+#admin accounts
 admin = {"admin01": "admin01", "admin02": "admin02"}
+
+#user accounts
 user = {"user01": "user01", "user02": "user02"}
 
+#login function
 def login():
     global admin_logged_in, user_logged_in
-    attempt_counter = 0
     max_attempts = 2
 
-    while attempt_counter < max_attempts:
+    # Infinite username checking loop
+    while True:
         try:
             # Ensure username isn't empty
-            username = input(Fore.CYAN + "Enter Username: " + Style.RESET_ALL)
+            username = input(Fore.CYAN + "Enter Username (Type 'E' to quit): " + Style.RESET_ALL)
+
+            if username == 'E':
+                print(Fore.YELLOW + "Exiting login process." + Style.RESET_ALL)
+                return  # Exit the login function
+
             while not username:  # Check if the username is empty
                 print(Fore.RED + "Invalid Username. Please try again" + Style.RESET_ALL)
-                username = input(Fore.CYAN + "Enter Username: " + Style.RESET_ALL)
+                username = input(Fore.CYAN + "Enter Username (Type 'E' to quit): " + Style.RESET_ALL)
 
-            # Password attempt counter
+            # Check if username exists in either admin or user dictionaries
+            if username not in admin and username not in user:
+                print(Fore.RED + "User does not exist. Please check your username and try again." + Style.RESET_ALL)
+                continue  # Keep asking for the username if it doesn't exist
+
+            # If username is valid, proceed to password input
             password_attempts = 0
             while password_attempts < max_attempts:
                 password = input(Fore.CYAN + "Enter Password: " + Style.RESET_ALL)
@@ -118,16 +136,18 @@ def login():
                     print(Fore.RED + "Invalid Password. Please try again." + Style.RESET_ALL)
                     password_attempts += 1
 
-            print(Fore.RED + "Too many failed password attempts. Login locked." + Style.RESET_ALL)
+            print(Fore.RED + "Too many failed password attempts." + Style.RESET_ALL)
             return  # Exit after failed password attempts
 
         except ValueError:
             print(Fore.RED + "Invalid Input" + Style.RESET_ALL)
-            attempt_counter += 1
+            continue  # Continue asking for the username if there's an invalid input
 
     # If the user exceeds the attempt limit for username
     print(Fore.RED + "Too many failed login attempts.\n" + Style.RESET_ALL)
 
+
+#logout feature
 def admin_logout():
     admin_logged_in = False
     print(Fore.GREEN + "You have successfully logged out! \n")
@@ -138,7 +158,7 @@ def user_logout():
     print(Fore.GREEN + "You have successfully logged out! \n")
     login()
 
-
+#Admin menu when user is logged in as an admin
 def admin_menu():
     while True:
         print(
@@ -150,8 +170,9 @@ def admin_menu():
             "5: Sort students by Num of Registered Course \n"
             "6: Search for a student by ID or Name \n"
             "7: Export student data to CSV \n"
-            "8: Login  \n"
-            "9: Logout \n"
+            "8: Generate Student Distribution by Year chart \n"
+            "9: Login  \n"
+            "10: Logout \n"
             "0: Exit the program "
         )
 
@@ -171,17 +192,20 @@ def admin_menu():
         elif choice == "7":
             export()
         elif choice == "8":
-            login()
+            generate_distribution_chart()
         elif choice == "9":
+            login()
+        elif choice == "10":
             admin_logout()
         elif choice == "0":
             print("Exiting the programme...")
             logging.info(f"Admin has exited the programme")
             break
         else:
-            print(Fore.RED + "Invalid Option, Please enter an input from 1-9 \n" + Style.RESET_ALL)
+            print(Fore.RED + "Invalid Option, Please enter an input from 0-10 \n" + Style.RESET_ALL)
             logging.warning(f"Invalid menu option entered")
 
+#User menu when user is logged in as an user
 def user_menu():
     while True:
         print(
@@ -204,7 +228,7 @@ def user_menu():
             logging.info(f"User has exited the programme")
             break
         else:
-            print(Fore.RED + "Invalid Option, Please enter an input from 1-9 \n" + Style.RESET_ALL)
+            print(Fore.RED + "Invalid Option, Please enter an input from 0-3 \n" + Style.RESET_ALL)
             logging.warning(f"Invalid menu option entered")
 
 def display_all():
@@ -215,7 +239,7 @@ def display_all():
     for student in students:
         student["Status"] = "Full-Time" if student["Status"] else "Part-Time"
 
-    print("Display Of All Student Records: \n" + tabulate(students, headers="keys", tablefmt="fancy_grid"))
+    print(Fore.CYAN + "Display Of All Student Records: \n" + Style.RESET_ALL + tabulate(students, headers="keys", tablefmt="fancy_grid"))
 
 
 def add_student():
@@ -330,7 +354,7 @@ def add_student():
     logging.info(f"New student added: ID: {student_id}, Name: {capitalised_name}, Email: {email}, Course: {courses}, Year: {year}, Status: {status}")
     print(Fore.GREEN + f"Student {capitalised_name} added successfully. \n" + Style.RESET_ALL)
 
-# Initial Enrollment code - commented if new code malfunctions
+# Initial Enrollment code - use if new enroll_student() code malfunctions
 # def enroll_student():
 #     while True:
 #         try:
@@ -382,6 +406,8 @@ def add_student():
 #
 #         except ValueError:
 #             print(Fore.RED + "Invalid Student ID, Enter a valid student ID" + Style.RESET_ALL)
+
+#Function to enroll students
 def enroll_student():
     while True:
         try:
@@ -397,14 +423,14 @@ def enroll_student():
             student = next((s for s in students if s["Student ID"] == student_id), None)
 
             if not student:
-                logging.warning(f"Tried to enroll invalid student, ID: {student_id}")
+                logging.warning(f"Tried to enroll with an invalid student, ID: {student_id}")
                 print(Fore.RED + "Student ID not found." + Style.RESET_ALL)
                 continue
 
             print(Fore.GREEN + f"Student {student['Student Name']}, ID: {student_id} has been chosen." + Style.RESET_ALL)
 
             while True:
-                courses_input = input("Enter course codes separated by spaces (Enter 'E' to exit): ")
+                courses_input = input("Enter course codes (comma-seperated) (Enter 'E' to exit): ")
 
                 if not courses_input:
                     print(Fore.RED + "Invalid Course Code. Please enter a valid Course Code." + Style.RESET_ALL)
@@ -414,7 +440,7 @@ def enroll_student():
                     print(Fore.GREEN + "Exiting the enrollment process..." + Style.RESET_ALL)
                     return
 
-                courses = courses_input.strip().split()
+                courses = courses_input.strip().split(",")
 
                 for course in courses:
                     course = course.upper()
@@ -464,7 +490,7 @@ def search():
     search_input = input("Enter Student ID or Student Name: ").strip()
     for student in students:
         if str(student["Student ID"]) == search_input or student["Student Name"].lower() == search_input.lower():
-            print("\nSearched Student Details:\n" + tabulate([student], headers="keys", tablefmt="fancy_grid"))
+            print(Fore.CYAN + "\nSearched Student Details:\n" + Style.RESET_ALL + tabulate([student], headers="keys", tablefmt="fancy_grid"))
             break  # stop after first match
     else:
         logging.warning(f"Student with ID or name {search_input} not found.")
@@ -476,12 +502,45 @@ def export():
 
     df.to_csv('students.csv', index=False)
 
-    print("Data has been successfully exported to 'students.csv'. \n")
+    print(Fore.GREEN + "Data has been successfully exported to 'students.csv'. \n" + Style.RESET_ALL)
     logging.info(f"Data has been successfully exported to 'students.csv'")
 
-    print(Fore.RED + "You are not Logged In!" + Style.RESET_ALL)
 
+def generate_distribution_chart():
+    try:
+        if not students:
+            print(Fore.RED + "No student records found.")
+            return
 
+        # Count students in each year
+        year_counts = {1: 0, 2: 0, 3: 0}
+        for student in students:
+            year = student.get("Year")
+            if year in year_counts:
+                year_counts[year] += 1
+
+        x = np.array(["Year 1", "Year 2", "Year 3"])
+        y = np.array([year_counts[1], year_counts[2], year_counts[3]])
+
+        fig, ax = plt.subplots()
+        ax.bar(x, y, color='skyblue')
+        ax.set_xlabel('Year')
+        ax.set_ylabel('Number of Students')
+        ax.set_title('Student Distribution by Year')
+
+        # Ensure y-axis has only whole numbers
+        ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+
+        chart_filename = 'student_distribution_chart.png'
+        plt.savefig(chart_filename)
+        plt.show()
+
+        print(Fore.GREEN + f"Student distribution chart generated and saved as {chart_filename}.")
+        logging.info(f"Student distribution chart generated and saved as {chart_filename}.")
+
+    except Exception as e:
+        print(Fore.RED + f"Error generating department distribution chart: {e}")
+        logging.error(f"Error generating department distribution chart: {e}")
 
 
 if __name__ == "__main__":

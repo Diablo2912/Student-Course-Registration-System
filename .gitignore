@@ -177,3 +177,5 @@ cython_debug/
 student_registration.log
 
 students.csv
+
+student_distribution_chart.png
