@@ -242,6 +242,7 @@ def user_menu():
             print(Fore.RED + "Invalid Option, Please enter an input from 0-3 \n" + Style.RESET_ALL)
             logging.warning(f"Invalid menu option entered")
 
+#Function to display all students and information
 def display_all():
     if not students:
         print(Fore.RED + "No students found." + Style.RESET_ALL)
