@@ -22,6 +22,7 @@ class Student():
         self.year = year
         self.status = status
 
+    #email validator
     @staticmethod
     def validate_email(email):
         """Validate if the email is in the correct format."""
@@ -78,18 +79,28 @@ students = [
     {
         "Student ID": 10005,
         "Student Name": "Cristiano Ronaldo",
-        "Email": "crstiano@poly.edu",
+        "Email": "crstiano@gmail.com",
         "Courses": ["IT100", "SF209", "CS505"],
         "Year": 3,
         "Status": False
-    }
+    },
+    {
+        "Student ID": 10088,
+        "Student Name": "Yuna",
+        "Email": "yuna@gmail.com",
+        "Courses": ["SF500"],
+        "Year": 3,
+        "Status": True
+    },
 ]
 
 #admin accounts
-admin = {"admin01": "admin01", "admin02": "admin02"}
+admin = {"admin01": "admin01",
+         "admin02": "admin02"}
 
 #user accounts
-user = {"user01": "user01", "user02": "user02"}
+user = {"user01": "user01",
+        "user02": "user02"}
 
 #login function
 def login():
@@ -205,7 +216,7 @@ def admin_menu():
             print(Fore.RED + "Invalid Option, Please enter an input from 0-10 \n" + Style.RESET_ALL)
             logging.warning(f"Invalid menu option entered")
 
-#User menu when user is logged in as an user
+#User menu when user is logged in as a user
 def user_menu():
     while True:
         print(
@@ -301,13 +312,20 @@ def add_student():
             logging.error("Invalid email format input entered.")
 
     while True:
-        courses = input("Enter Course List (comma-separated): ").strip().upper().split(",")
-        courses = [c.strip() for c in courses]  # remove extra spaces
+        try:
+            courses = input("Enter Course List (comma-separated): ").strip().upper().split(",")
+            courses = [c.strip() for c in courses if c.strip()]  # remove extra spaces and ignore empty entries
 
-        if (re.fullmatch(r'[A-Z]{2}\d{3}', c) for c in courses):
-            break
-        else:
-            print("Invalid input. Each course must have 2 letters followed by 3 digits. Try again.")
+            if not courses:
+                print(Fore.RED + "Must enroll student into at least 1 course" +Style.RESET_ALL)
+                continue
+
+            if (re.fullmatch(r'[A-Z]{2}\d{3}', c) for c in courses):
+                break
+            else:
+                print("Invalid input. Each course must have 2 letters followed by 3 digits (e.g., CS101). Try again.")
+        except ValueError as ve:
+            print(ve)
 
     while True:
         try:
@@ -466,7 +484,7 @@ def sort_year():
     n = len(students)
     for i in range(n):
         for j in range(0, n - i - 1):
-            if students[j]["Year"] > students[j + 1]["Year"]:
+            if students[j]["Year"] < students[j + 1]["Year"]:
                 students[j], students[j + 1] = students[j + 1], students[j]
 
     print("Sorted by Year Of Study in Ascending Order: \n" + tabulate(students, headers="keys", tablefmt="fancy_grid"))
