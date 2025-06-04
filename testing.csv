@@ -1,0 +1,6 @@
+Student ID,Student Name,Email,Courses,Year,Status
+10011,Giselle ,Giselle.lee@uni.edu,"['CS102', 'IT103']",1,True
+10012,Yeji ,yeji.park@uni.edu,"['CS101', 'SF205']",2,True
+10013,Mo Salah,mo.salah@uni.edu,"['IT200', 'CS202']",3,True
+10014,Virgil van Dijk,van.dijk@uni.edu,"['CS303', 'SF300']",3,False
+10015,Lia ,lia@uni.edu,"['IT104', 'CS107']",1,True

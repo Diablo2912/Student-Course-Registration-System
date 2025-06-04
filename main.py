@@ -7,6 +7,7 @@ from colorama import Fore, Back, Style
 from tabulate import tabulate
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
+import os
 
 #logging
 logging.basicConfig(filename='student_registration.log',
@@ -181,9 +182,10 @@ def admin_menu():
             "5: Sort students by Num of Registered Course \n"
             "6: Search for a student by ID or Name \n"
             "7: Export student data to CSV \n"
-            "8: Generate Student Distribution by Year chart \n"
-            "9: Login  \n"
-            "10: Logout \n"
+            "8: Import student data from CSV \n"
+            "9: Generate Student Distribution by Year chart \n"
+            "10: Login  \n"
+            "11: Logout \n"
             "0: Exit the program "
         )
 
@@ -203,13 +205,15 @@ def admin_menu():
         elif choice == "7":
             export()
         elif choice == "8":
-            generate_distribution_chart()
+            import_csv()
         elif choice == "9":
+            generate_distribution_chart()
+        elif choice == "10":
             login()
         elif choice == "10":
             admin_logout()
         elif choice == "0":
-            print("Exiting the programme...")
+            print(Fore.RED + "Exiting the programme...")
             logging.info(f"Admin has exited the programme")
             break
         else:
@@ -235,7 +239,7 @@ def user_menu():
         elif choice == "3":
             user_logout()
         elif choice == "0":
-            print("Exiting the programme...")
+            print(Fore.RED + "Exiting the programme...")
             logging.info(f"User has exited the programme")
             break
         else:
@@ -523,6 +527,51 @@ def export():
 
     print(Fore.GREEN + "Data has been successfully exported to 'students.csv'. \n" + Style.RESET_ALL)
     logging.info(f"Data has been successfully exported to 'students.csv'")
+
+
+def import_csv():
+    file_name = input(Fore.CYAN + "Enter the CSV file name (with .csv extension): " + Style.RESET_ALL)
+
+    if not file_name.endswith('.csv'):
+        print(Fore.RED + "The file must have a .csv extension. Please try again." + Style.RESET_ALL)
+        return
+
+    if not os.path.exists(file_name):
+        print(
+            Fore.RED + f"The file {file_name} does not exist. Please check the file name and try again." + Style.RESET_ALL)
+        return
+
+    try:
+        # Read the CSV file into a pandas DataFrame
+        df = pd.read_csv(file_name)
+
+        # Validate if necessary columns exist in the CSV
+        required_columns = ['Student ID', 'Student Name', 'Email', 'Courses', 'Year', 'Status']
+        if not all(col in df.columns for col in required_columns):
+            print(
+                Fore.RED + f"CSV file must contain the following columns: {', '.join(required_columns)}" + Style.RESET_ALL)
+            return
+
+        # Convert DataFrame to list of dictionaries
+        new_students = df.to_dict(orient='records')
+
+        # Add new students to the existing students list (without duplicates)
+        global students
+        for new_student in new_students:
+            # Check if the student ID already exists
+            if not any(student['Student ID'] == new_student['Student ID'] for student in students):
+                students.append(new_student)
+            else:
+                print(
+                    Fore.RED + f"Student ID {new_student['Student ID']} already exists. Skipping." + Style.RESET_ALL)
+
+        print(
+            Fore.GREEN + f"Student data from '{file_name}' has been successfully added to the current records." + Style.RESET_ALL)
+        logging.info(f"Student data from '{file_name}' has been successfully added.")
+
+    except Exception as e:
+        print(Fore.RED + f"Error reading the CSV file: {e}" + Style.RESET_ALL)
+        logging.error(f"Error reading the CSV file: {e}")
 
 
 def generate_distribution_chart():
