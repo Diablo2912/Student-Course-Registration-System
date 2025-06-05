@@ -15,7 +15,7 @@ logging.basicConfig(filename='student_registration.log',
                     level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s')
 
-class Student():
+class Student:
     def __init__(self,student_id, student_name, email, course, year, status):
         self.student_id = student_id
         self.student_name = student_name
@@ -97,7 +97,6 @@ user = {"user01": "user01",
 
 #login function
 def login():
-    global admin_logged_in, user_logged_in
     max_attempts = 2
 
     # Infinite username checking loop
@@ -125,14 +124,12 @@ def login():
                 password = input(Fore.CYAN + "Enter Password: " + Style.RESET_ALL)
 
                 if username in admin and admin[username] == password:
-                    admin_logged_in = True
                     print(Fore.GREEN + f"{username} has logged in successfully as an Admin! \n" + Style.RESET_ALL)
                     logging.info(f"{username} has logged in successfully as an Admin!")
                     admin_menu()
                     return  # Exit after successful login
 
                 elif username in user and user[username] == password:
-                    user_logged_in = True
                     print(Fore.GREEN + f"{username} has logged in successfully as a User! \n" + Style.RESET_ALL)
                     logging.info(f"{username} has logged in successfully as a User!")
                     user_menu()
@@ -153,12 +150,10 @@ def login():
 
 #logout feature
 def admin_logout():
-    admin_logged_in = False
     print(Fore.GREEN + "You have successfully logged out! \n")
     login()
 
 def user_logout():
-    user_logged_in = False
     print(Fore.GREEN + "You have successfully logged out! \n")
     login()
 
