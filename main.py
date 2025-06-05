@@ -3,12 +3,17 @@ import numpy as np
 import pandas as pd
 import logging
 import re
-import colorama
 from colorama import Fore, Back, Style
 from tabulate import tabulate
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 import os
+from gtts import gTTS
+from playsound import playsound
+import getpass
+
+#language for TTS
+language = "en"
 
 #logging
 logging.basicConfig(filename='student_registration.log',
@@ -103,15 +108,19 @@ def login():
     while True:
         try:
             # Ensure username isn't empty
-            username = input(Fore.CYAN + "Enter Username (Type 'E' to quit): " + Style.RESET_ALL)
+            username = input(Fore.CYAN + "Enter Username (Type 'E' to quit, 'Reset PW' to reset password): " + Style.RESET_ALL)
 
             if username == 'E':
                 print(Fore.YELLOW + "Exiting login process." + Style.RESET_ALL)
-                break  # Exit the login function
+                return  # Exit the login function
+
+            elif username == "Reset PW":
+                reset_password()
+                return
 
             while not username:  # Check if the username is empty
                 print(Fore.RED + "Invalid Username. Please try again" + Style.RESET_ALL)
-                username = input(Fore.CYAN + "Enter Username (Type 'E' to quit): " + Style.RESET_ALL)
+                username = input(Fore.CYAN + "Enter Username (Type 'E' to quit, 'Reset PW' to reset password): " + Style.RESET_ALL)
 
             # Check if username exists in either admin or user dictionaries
             if username not in admin and username not in user:
@@ -121,16 +130,28 @@ def login():
             # If username is valid, proceed to password input
             password_attempts = 0
             while password_attempts < max_attempts:
-                password = input(Fore.CYAN + "Enter Password: " + Style.RESET_ALL)
+                password = input(Fore.CYAN + "Enter Password (Enter 'Reset PW' to reset password): " + Style.RESET_ALL)
 
+                #Success message when user is logged in as admin
                 if username in admin and admin[username] == password:
-                    print(Fore.GREEN + f"{username} has logged in successfully as an Admin! \n" + Style.RESET_ALL)
+                    print(Fore.GREEN + f"{username} has logged in successfully as an Admin! \nHello {username}! \n" + Style.RESET_ALL)
+                    TTS = gTTS(text = f'Hello {username}', lang = language, slow = False)
+                    TTS.save("admin.mp3")
+                    playsound("admin.mp3")
                     logging.info(f"{username} has logged in successfully as an Admin!")
                     admin_menu()
                     return  # Exit after successful login
 
+                elif password == "Reset PW":
+                    reset_password()
+                    return
+
+                # Success message when user is logged in as user
                 elif username in user and user[username] == password:
-                    print(Fore.GREEN + f"{username} has logged in successfully as a User! \n" + Style.RESET_ALL)
+                    print(Fore.GREEN + f"{username} has logged in successfully as a User! \nHello {username}! \n" + Style.RESET_ALL)
+                    TTS = gTTS(text=f'Hello {username}', lang=language, slow=False)
+                    TTS.save("user.mp3")
+                    playsound("user.mp3")
                     logging.info(f"{username} has logged in successfully as a User!")
                     user_menu()
                     return  # Exit after successful login
@@ -140,28 +161,44 @@ def login():
                     password_attempts += 1
 
             print(Fore.RED + "Too many failed password attempts." + Style.RESET_ALL)
-            logging.warning(f"Too many failed password attempts.")
+            logging.warning(f"Too many failed password attempts for user: {username}")
             return  # Exit after failed password attempts
 
         except ValueError:
             print(Fore.RED + "Invalid Input" + Style.RESET_ALL)
             continue  # Continue asking for the username if there's an invalid input
 
+def reset_password():
+    while True:
+        username = input(Fore.YELLOW + "Enter username to reset password for: " + Style.RESET_ALL)
+        if username not in user:
+            print(Fore.RED + "User does not exist. Please check your username and try again." + Style.RESET_ALL)
+            continue  # Keep asking for the username if it doesn't exist
+        break
 
-#logout feature
-def admin_logout():
-    print(Fore.GREEN + "You have successfully logged out! \n")
+    while True:
+        password =input(Fore.YELLOW + "Enter new password: " + Style.RESET_ALL)
+        if not password:
+            print(Fore.RED + "Invalid new password. Please try again." + Style.RESET_ALL)
+            continue
+
+        if password == user[username]:
+            print(Fore.RED + "New password cannot be same as the old password" + Style.RESET_ALL)
+            break
+
+        user[username] = password  # update the user password
+        print(Fore.GREEN + f"Password for {username} has been successfully reset. \n" + Style.RESET_ALL)
+        break
+
     login()
 
-def user_logout():
-    print(Fore.GREEN + "You have successfully logged out! \n")
-    login()
 
 #Admin menu when user is logged in as an admin
 def admin_menu():
     while True:
         print(
             Fore.MAGENTA + "--- Student Course Registration System --- \n" + Style.RESET_ALL +
+            Fore.BLUE + "--- Admin Menu --- \n" + Style.RESET_ALL +
             "1: Display all student records \n"
             "2: Add a new student record \n"
             "3: Remove student by ID \n"
@@ -170,11 +207,13 @@ def admin_menu():
             "6: Sort students by Year of Study \n"
             "7: Sort students by Num of Registered Course \n"
             "8: Search for a student by ID or Name \n"
-            "9: Export student data to CSV \n"
-            "10: Import student data from CSV \n"
-            "11: Generate Student Distribution by Year chart \n"
-            "12: Login  \n"
-            "13: Logout \n"
+            "9: Search for Student ID by range \n"
+            "10: Filter Students by Year \n"
+            "11: Export student data to CSV \n"
+            "12: Import student data from CSV \n"
+            "13: Generate Student Distribution by Year chart \n"
+            "14: Login  \n"
+            "15: Logout \n"
             "0: Exit the program "
         )
 
@@ -196,21 +235,26 @@ def admin_menu():
         elif choice == "8":
             search()
         elif choice == "9":
-            export()
+            student_range()
         elif choice == "10":
-            import_csv()
+            filter_students()
         elif choice == "11":
-            generate_distribution_chart()
+            export()
         elif choice == "12":
-            login()
+            import_csv()
         elif choice == "13":
-            admin_logout()
+            generate_distribution_chart()
+        elif choice == "14":
+            login()
+        elif choice == "15":
+            print(Fore.GREEN + "You have successfully logged out! \n")
+            login()
         elif choice == "0":
             print(Fore.RED + "Exiting the programme...")
             logging.info(f"Admin has exited the programme")
             break
         else:
-            print(Fore.RED + "Invalid Option, Please enter an input from 0-10 \n" + Style.RESET_ALL)
+            print(Fore.RED + "Invalid Option, Please enter an input from 0-15 \n" + Style.RESET_ALL)
             logging.warning(f"Invalid menu option entered")
 
 #User menu when user is logged in as a user
@@ -218,9 +262,11 @@ def user_menu():
     while True:
         print(
             Fore.MAGENTA + "--- Student Course Registration System --- \n" + Style.RESET_ALL +
+            Fore.BLUE + "--- User Menu --- \n" + Style.RESET_ALL +
             "1: Display all student records \n"
             "2: Search for a student by ID or Name \n"
             "3: Logout  \n"
+            "4: Reset Password  \n"
             "0: Exit the program "
         )
 
@@ -230,7 +276,10 @@ def user_menu():
         elif choice == "2":
             search()
         elif choice == "3":
-            user_logout()
+            print(Fore.GREEN + "You have successfully logged out! \n")
+            login()
+        elif choice == "4":
+            reset_password()
         elif choice == "0":
             print(Fore.RED + "Exiting the programme...")
             logging.info(f"User has exited the programme")
@@ -248,7 +297,7 @@ def display_all():
     for student in students:
         student["Status"] = "Full-Time" if student["Status"] else "Part-Time"
 
-    print(Fore.CYAN + "Display Of All Student Records: \n" + Style.RESET_ALL + tabulate(students, headers="keys", tablefmt="fancy_grid"))
+    print(Fore.CYAN + "\nDisplay Of All Student Records: \n" + Style.RESET_ALL + tabulate(students, headers="keys", tablefmt="fancy_grid"))
 
 
 def add_student():
@@ -388,7 +437,7 @@ def remove_student_by_id():
             if student_found:
                 # Remove the student with the given ID
                 students = [student for student in students if student["Student ID"] != student_id]
-                print(f"Student with ID {student_id} has been removed.")
+                print(Fore.GREEN + f"Student with ID {student_id} has been removed. \n" + Style.RESET_ALL)
                 break
             else:
                 print(Fore.RED + "Student ID not found. Please enter a valid student ID." + Style.RESET_ALL)
@@ -568,6 +617,61 @@ def search():
         logging.warning(f"Student with ID or name {search_input} not found.")
         print(Fore.RED + "Student not found." + Style.RESET_ALL)
 
+def student_range():
+    lower_limit = input("Enter lower limit for student ID: ")
+
+    if not (lower_limit.isdigit() and len(lower_limit) == 5):
+        print(Fore.RED + "Invalid lower limit. Enter a 5-digit Student ID." + Style.RESET_ALL)
+        return
+
+    upper_limit = input("Enter upper limit for student ID: ")
+
+    if not (upper_limit.isdigit() and len(upper_limit) == 5):
+        print(Fore.RED + "Invalid upper limit. Enter a 5-digit Student ID." + Style.RESET_ALL)
+        return
+
+    lower_limit = int(lower_limit)
+    upper_limit = int(upper_limit)
+
+    # Filter students
+    filtered_students = [
+        student for student in students
+        if lower_limit <= student["Student ID"] <= upper_limit
+    ]
+
+    print(f"\nStudents with ID from {lower_limit} to {upper_limit}:")
+
+    if filtered_students:
+        # Bubble sort ascending by Student ID
+        n = len(filtered_students)
+        for i in range(n):
+            for j in range(0, n - i - 1):
+                if filtered_students[j]["Student ID"] > filtered_students[j + 1]["Student ID"]:
+                    filtered_students[j], filtered_students[j + 1] = filtered_students[j + 1], filtered_students[j]
+
+        print(tabulate(filtered_students, headers="keys", tablefmt="fancy_grid"))
+    else:
+        print(Fore.YELLOW + "No student IDs found in the given range." + Style.RESET_ALL)
+
+def filter_students():
+    try:
+        filter_year_input = int(input("Enter year of students to filter: "))
+    except ValueError:
+        print(Fore.RED + "Invalid year. Please enter a number." + Style.RESET_ALL)
+        return
+
+    filtered_students = [
+        student for student in students
+        if student["Year"] == filter_year_input
+    ]
+
+    print(f"\nAll Year {filter_year_input} Students:")
+
+    if filtered_students:
+        print(tabulate(filtered_students, headers="keys", tablefmt="fancy_grid"))
+    else:
+        print(Fore.YELLOW + "No students found in the selected year." + Style.RESET_ALL)
+
 #import pandas - export to csv
 def export():
     export_csv_filename = input(Fore.CYAN + "Enter the name of the file you wish to save as (with .csv extension): " + Style.RESET_ALL)
@@ -621,8 +725,7 @@ def import_csv():
                 print(
                     Fore.RED + f"Student ID {new_student['Student ID']} already exists. Skipping." + Style.RESET_ALL)
 
-        print(
-            Fore.GREEN + f"Student data from '{file_name}' has been successfully added to the current records." + Style.RESET_ALL)
+        print(Fore.GREEN + f"Student data from '{file_name}' has been successfully added to the current records." + Style.RESET_ALL)
         logging.info(f"Student data from '{file_name}' has been successfully added.")
 
     except Exception as e:
