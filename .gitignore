@@ -174,8 +174,11 @@ cython_debug/
 .pypirc
 
 
-student_registration.log
+.log
 
-students.csv
+.csv
 
-student_distribution_chart.png
+.png
+
+.mp3
+
