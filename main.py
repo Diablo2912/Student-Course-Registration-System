@@ -3,16 +3,15 @@ import numpy as np
 import pandas as pd
 import logging
 import re
-from colorama import Fore, Back, Style
+from colorama import Fore, Style
 from tabulate import tabulate
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 import os
 from gtts import gTTS
 from playsound import playsound
-import getpass
 
-#language for TTS
+#language for gTTS
 language = "en"
 
 #logging
@@ -135,9 +134,9 @@ def login():
                 #Success message when user is logged in as admin
                 if username in admin and admin[username] == password:
                     print(Fore.GREEN + f"{username} has logged in successfully as an Admin! \nHello {username}! \n" + Style.RESET_ALL)
-                    TTS = gTTS(text = f'Hello {username}', lang = language, slow = False)
-                    TTS.save("admin.mp3")
-                    playsound("admin.mp3")
+                    tts = gTTS(text = f'Hello {username}', lang = language, slow = False)
+                    tts.save(f"{username}.mp3")
+                    playsound(f"{username}.mp3")
                     logging.info(f"{username} has logged in successfully as an Admin!")
                     admin_menu()
                     return  # Exit after successful login
@@ -149,9 +148,9 @@ def login():
                 # Success message when user is logged in as user
                 elif username in user and user[username] == password:
                     print(Fore.GREEN + f"{username} has logged in successfully as a User! \nHello {username}! \n" + Style.RESET_ALL)
-                    TTS = gTTS(text=f'Hello {username}', lang=language, slow=False)
-                    TTS.save("user.mp3")
-                    playsound("user.mp3")
+                    tts = gTTS(text=f'Hello {username}', lang=language, slow=False)
+                    tts.save(f"{username}.mp3")
+                    playsound(f"{username}.mp3")
                     logging.info(f"{username} has logged in successfully as a User!")
                     user_menu()
                     return  # Exit after successful login
@@ -188,6 +187,7 @@ def reset_password():
 
         user[username] = password  # update the user password
         print(Fore.GREEN + f"Password for {username} has been successfully reset. \n" + Style.RESET_ALL)
+        logging.info(f'{username} has successfully reset their password')
         break
 
     login()
@@ -209,8 +209,8 @@ def admin_menu():
             "8: Search for a student by ID or Name \n"
             "9: Search for Student ID by range \n"
             "10: Filter Students by Year \n"
-            "11: Export student data to CSV \n"
-            "12: Import student data from CSV \n"
+            "11: Import student data from CSV \n"
+            "12: Export student data to CSV \n"
             "13: Generate Student Distribution by Year chart \n"
             "14: Login  \n"
             "15: Logout \n"
@@ -239,22 +239,20 @@ def admin_menu():
         elif choice == "10":
             filter_students()
         elif choice == "11":
-            export()
-        elif choice == "12":
             import_csv()
+        elif choice == "12":
+            export()
         elif choice == "13":
             generate_distribution_chart()
         elif choice == "14":
-            login()
-        elif choice == "15":
             print(Fore.GREEN + "You have successfully logged out! \n")
             login()
         elif choice == "0":
             print(Fore.RED + "Exiting the programme...")
             logging.info(f"Admin has exited the programme")
-            break
+            exit()
         else:
-            print(Fore.RED + "Invalid Option, Please enter an input from 0-15 \n" + Style.RESET_ALL)
+            print(Fore.RED + "Invalid Option, Please enter an input from 0-14 \n" + Style.RESET_ALL)
             logging.warning(f"Invalid menu option entered")
 
 #User menu when user is logged in as a user
@@ -283,9 +281,9 @@ def user_menu():
         elif choice == "0":
             print(Fore.RED + "Exiting the programme...")
             logging.info(f"User has exited the programme")
-            break
+            exit()
         else:
-            print(Fore.RED + "Invalid Option, Please enter an input from 0-3 \n" + Style.RESET_ALL)
+            print(Fore.RED + "Invalid Option, Please enter an input from 0-4 \n" + Style.RESET_ALL)
             logging.warning(f"Invalid menu option entered")
 
 #Function to display all students and information
@@ -438,6 +436,7 @@ def remove_student_by_id():
                 # Remove the student with the given ID
                 students = [student for student in students if student["Student ID"] != student_id]
                 print(Fore.GREEN + f"Student with ID {student_id} has been removed. \n" + Style.RESET_ALL)
+                logging.warning(f'{student_id} student details has been successfully removed')
                 break
             else:
                 print(Fore.RED + "Student ID not found. Please enter a valid student ID." + Style.RESET_ALL)
