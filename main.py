@@ -468,7 +468,7 @@ def user_menu():
 
 # Function to display all users
 def display_all_users():
-    print(Fore.CYAN + "\nDisplay Of All User Records:" )
+    print(Fore.CYAN + "\nDisplay Of All User Records:" + Style.RESET_ALL)
     print(tabulate(user, headers="keys", tablefmt="fancy_grid"))
 
 
@@ -489,7 +489,7 @@ def display_all_students():
             if students[j]["Student ID"] > students[j + 1]["Student ID"]:  # < when descending
                 students[j], students[j + 1] = students[j + 1], students[j]
 
-    print(Fore.CYAN + "\nDisplay Of All Student Records: \n" + tabulate(students, headers="keys",tablefmt="fancy_grid"))
+    print(Fore.CYAN + "\nDisplay Of All Student Records: \n" + Style.RESET_ALL + tabulate(students, headers="keys",tablefmt="fancy_grid"))
 
 
 # Function to add student
@@ -603,7 +603,7 @@ def add_student():
                 status = False
                 break
             else:
-                print("Invalid status input. Please enter 1 or 2.")
+                print(Fore.RED + "Invalid status input. Please enter 1 or 2.")
                 logging.warning(f"Invalid status input entered: {status_input}.")
                 continue
 
@@ -720,7 +720,7 @@ def enroll_student():
 
                     if not re.match(r'^[A-Z]{2}\d{3}$', course):
                         print(
-                            Fore.RED + f"Invalid course code: {course}. Must be in format like 'CS101'.")
+                            Fore.RED + f"Invalid course code: {course}. Each course must have 2 letters followed by 3 digits.")
                         continue
 
                     if course in student["Courses"]:
@@ -772,14 +772,14 @@ def remove_course():
                     print(Fore.GREEN + "Exiting the removal process...")
                     return
 
-                courses = courses_input.strip().split(",")
+                courses = [course.strip().upper() for course in courses_input.strip().split(",")]
 
                 for course in courses:
                     course = course.upper()
 
                     if not re.match(r'^[A-Z]{2}\d{3}$', course):
                         print(
-                            Fore.RED + f"Invalid course code: {course}. Must be in format like 'CS101'." )
+                            Fore.RED + f"Invalid course code: {course}.Each course must have 2 letters followed by 3 digits." )
                         continue
 
                     if not course in student["Courses"]:
@@ -788,8 +788,7 @@ def remove_course():
                         continue
 
                     student["Courses"].remove(course)
-                    print(
-                        Fore.GREEN + f"Student {student['Student Name']}, ID: {student_id} has been successfully removed from {course}." )
+                    print(Fore.GREEN + f"Student {student['Student Name']}, ID: {student_id} has been successfully removed from {course}." )
                     logging.info(f"Student {student['Student Name']}, ID: {student_id} removed from {course}")
 
 
@@ -900,7 +899,7 @@ def student_range():
         if lower_limit <= student["Student ID"] <= upper_limit
     ]
 
-    print(f"\nStudents with ID from {lower_limit} to {upper_limit}:")
+    print(Fore.CYAN + f"\nStudents with ID from {lower_limit} to {upper_limit}:" +Style.RESET_ALL)
 
     if filtered_students:
         # Bubble sort ascending by Student ID
