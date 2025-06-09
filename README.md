@@ -12,12 +12,12 @@ This combines Assignments 1 and 2.
 
 - Logging 
 - Access Control 
-- Persistent Storage of Student and User Data using JSON 
-- Lock the account after 2 wrong password attempts
-- Reset Password
-- Hashing passwords using SHA-256
-- Text to Speech(TTS) Message 
-- List Student ID by Range 
+- Persistent Storage of Student and User Data (JSON)
+- Account Lockout After Two Incorrect Password Attempts
+- Password Reset
+- Password Hashing using SHA-256
+- Text-to-Speech (TTS) Message 
+- Student ID Listing by Range
 - Filter Students by Year of Study
 - Export to CSV
 - Import CSV File - use 'testing.csv' to try out this feature
