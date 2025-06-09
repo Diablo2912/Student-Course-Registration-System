@@ -425,7 +425,6 @@ def main_menu(role):
 
 # Menu to manage users
 def manage_users_menu():
-    load_data()
     print(
         Fore.MAGENTA + "--- Student Course Registration System --- \n"  +
         Fore.BLUE + "--- Manage Users --- \n" + Style.RESET_ALL +
