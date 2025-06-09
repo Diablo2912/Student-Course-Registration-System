@@ -8,7 +8,7 @@ This is a combined effort of both Assignment 1 and 2
   pip install -r requirements.txt
 ```
 
-### Features in Assignment 1
+### Features 
 
 - Logging 
 - Access Control 
