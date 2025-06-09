@@ -1,0 +1,90 @@
+[
+      {
+            "Student ID": 10001,
+            "Student Name": "Alice Boo",
+            "Email": "alice.boo@poly.edu",
+            "Courses": [
+                  "IT101"
+            ],
+            "Year": 1,
+            "Status": true
+      },
+      {
+            "Student ID": 10045,
+            "Student Name": "Johan Power",
+            "Email": "johan.pow@poly.edu",
+            "Courses": [
+                  "IT111",
+                  "SF102"
+            ],
+            "Year": 2,
+            "Status": true
+      },
+      {
+            "Student ID": 10002,
+            "Student Name": "Karina",
+            "Email": "karina@poly.edu",
+            "Courses": [
+                  "IT101",
+                  "SF100",
+                  "CS242",
+                  "IT200"
+            ],
+            "Year": 1,
+            "Status": true
+      },
+      {
+            "Student ID": 10003,
+            "Student Name": "Winter",
+            "Email": "winter@poly.edu",
+            "Courses": [
+                  "IT202",
+                  "SF205",
+                  "CS500"
+            ],
+            "Year": 3,
+            "Status": false
+      },
+      {
+            "Student ID": 10005,
+            "Student Name": "Cristiano Ronaldo",
+            "Email": "crstiano@gmail.com",
+            "Courses": [
+                  "IT100",
+                  "SF209",
+                  "CS505"
+            ],
+            "Year": 3,
+            "Status": false
+      },
+      {
+            "Student ID": 10088,
+            "Student Name": "Yuna",
+            "Email": "yuna@gmail.com",
+            "Courses": [
+                  "SF500"
+            ],
+            "Year": 3,
+            "Status": true
+      },
+      {
+            "Student ID": 10077,
+            "Student Name": "Samuel Lee",
+            "Email": "samuellee@gmail.com",
+            "Courses": [
+                  "IT101"
+            ],
+            "Year": 2,
+            "Status": false
+      },
+      {
+            "Student ID": 10033,
+            "Student Name": "Kathy Tan",
+            "Email": "kathy@gmail.com",
+            "Courses": [
+                  "SF100"
+            ],
+            "Year": 2,
+            "Status": true
+      }
+]
