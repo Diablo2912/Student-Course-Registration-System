@@ -452,12 +452,6 @@ def manage_users_menu():
         print(Fore.RED + "Invalid Option, Please enter an input from 0-4 \n")
         logging.warning(f"Invalid menu option entered")
 
-
-# Function to display all users
-def display_all_users():
-    print(Fore.CYAN + "\nDisplay Of All User Records:" + Style.RESET_ALL)
-    print(tabulate(user, headers="keys", tablefmt="fancy_grid"))
-
 # Loads the json file for persistent storage
 def load_students_data():
     global students
@@ -470,30 +464,38 @@ def load_students_data():
             print(Fore.RED + f"Failed to load student data: {e}")
             logging.error(f"Error loading students data: {e}")
 
+    elif os.path.exists("user_data.json"):
+        try:
+            with open("user_data.json", "r") as f:
+                students = json.load(f)
+                print(Fore.GREEN + f"Loaded {len(user)} user(s) from user_data.json.\n")
+        except Exception as e:
+            print(Fore.RED + f"Failed to load user data: {e}")
+            logging.error(f"Error loading user data: {e}")
+
+# Function to display all users
+def display_all_users():
+    print(Fore.CYAN + "\nDisplay Of All User Records:" + Style.RESET_ALL)
+    print(tabulate(user, headers="keys", tablefmt="fancy_grid"))
+
 # Function to display all students and information
 def display_all_students():
     if not students:
         print(Fore.RED + "No students found.")
         return
 
-    # Create a display-ready copy of students with formatted status
-    display_data = []
+    # Convert Status:True to Full time and Status:False to Part-Time for display
     for student in students:
-        display_data.append({
-            "Student ID": student["Student ID"],
-            "Student Name": student["Student Name"],
-            "Email": student["Email"],
-            "Courses": ', '.join(student["Courses"]),  # join list for display
-            "Year": student["Year"],
-            "Status": "Full-Time" if student["Status"] else "Part-Time"
-        })
+        student["Status"] = "Full-Time" if student["Status"] else "Part-Time"
 
-    # Sort by Student ID in descending order
-    display_data.sort(key=lambda x: x["Student ID"], reverse=False)
+    # Sort function to sort Student ID in descending order for display
+    n = len(students)
+    for i in range(n):
+        for j in range(0, n - i - 1):
+            if students[j]["Student ID"] > students[j + 1]["Student ID"]:  # < when descending
+                students[j], students[j + 1] = students[j + 1], students[j]
 
-    # Print formatted table
-    print(Fore.CYAN + "\nDisplay Of All Student Records:\n" + Style.RESET_ALL)
-    print(tabulate(display_data, headers="keys", tablefmt="fancy_grid"))
+    print(Fore.CYAN + "\nDisplay Of All Student Records: \n" + Style.RESET_ALL + tabulate(students, headers="keys",tablefmt="fancy_grid"))
 
 # Function to add student
 def add_student():
@@ -650,6 +652,12 @@ def add_users():
 
     print(Fore.GREEN + f"You have successfully added {username}")
 
+    out_file = open("user_data.json", "w")
+
+    json.dump(user, out_file, indent=6)
+
+    out_file.close()
+
 
 # Function to remove students by ID
 def remove_student_by_id():
@@ -803,8 +811,6 @@ def sort_year():
 
         print("Sorted by Year Of Study in Ascending Order: \n" + tabulate(students, headers="keys",
                                                                           tablefmt="fancy_grid"))
-
-
     elif sort_year_order == "D":
         n = len(students)
         for i in range(n):
@@ -812,13 +818,10 @@ def sort_year():
                 if students[j]["Year"] < students[j + 1]["Year"]:  # < when descending
                     students[j], students[j + 1] = students[j + 1], students[j]
 
-        print("Sorted by Year Of Study in Descending Order: \n" + tabulate(students, headers="keys",
-                                                                           tablefmt="fancy_grid"))
-
+        print("Sorted by Year Of Study in Descending Order: \n" + tabulate(students, headers="keys",tablefmt="fancy_grid"))
 
     else:
         print(Fore.RED + "Invalid Sort Order!")
-
 
 # Selection Sort - Ascending/Descending
 # Sorted by num of registered courses
@@ -836,9 +839,7 @@ def sort_course():
                         students[min_idx]['Courses']):  # use len as comparing by no of | < if ascending
                     min_idx = j
             students[i], students[min_idx] = students[min_idx], students[i]
-        print("Sorted by Num of Registered Courses in Ascending Order: \n" + tabulate(students, headers="keys",
-                                                                                      tablefmt="fancy_grid"))
-
+        print("Sorted by Num of Registered Courses in Ascending Order: \n" + tabulate(students, headers="keys",tablefmt="fancy_grid"))
 
     elif sort_course_order == "D":
         for i in range(n - 1):
@@ -848,8 +849,7 @@ def sort_course():
                         students[max_idx]['Courses']):  # use len as comparing by no of | > if descending
                     max_idx = j
             students[i], students[max_idx] = students[max_idx], students[i]
-        print("Sorted by Num of Registered Courses in Descending Order: \n" + tabulate(students, headers="keys",
-                                                                                       tablefmt="fancy_grid"))
+        print("Sorted by Num of Registered Courses in Descending Order: \n" + tabulate(students, headers="keys",tablefmt="fancy_grid"))
 
 
     else:
@@ -992,7 +992,7 @@ def import_csv():
         logging.error(f"Error reading the CSV file: {e}")
 
 
-# Generate Pie/Bar chart using matplotlib
+# Generate Pie & Bar chart using matplotlib
 def generate_distribution_chart():
     try:
         if not students:
