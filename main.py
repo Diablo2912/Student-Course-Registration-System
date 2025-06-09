@@ -220,7 +220,7 @@ def login():
                         tts.save(f'{username}.mp3')
                         play_and_cleanup_audio(f'{username}.mp3')
                         logging.info(f"{username} has logged in successfully as an Admin!")
-                        admin_menu()
+                        main_menu(role="admin")
                         return  # Exit after successful login (exit from login function)
 
 
@@ -278,7 +278,7 @@ def login():
                             tts.save(f'{username}.mp3')
                             play_and_cleanup_audio(f'{username}.mp3')
                             logging.info(f"{username} has logged in successfully as a User!")
-                            user_menu()
+                            main_menu(role="user")
                             return  # Exit after successful login (exit from login function)
 
                 # Incorrect password
@@ -372,70 +372,56 @@ def user_activation():
 
 
 # Admin menu when admin is logged in
-def admin_menu():
+def main_menu(role):
     load_students_data()
+
+    # Define menu options by role
+    admin_options = {
+        "1": ("Display all student records", display_all_students),
+        "2": ("Add a new student record", add_student),
+        "3": ("Remove student by ID", remove_student_by_id),
+        "4": ("Enroll student for a new course", enroll_student),
+        "5": ("Remove student from course", remove_course),
+        "6": ("Sort students by Year of Study", sort_year),
+        "7": ("Sort students by Num of Registered Course", sort_course),
+        "8": ("Search for a student by ID or Name", search),
+        "9": ("Search Student ID by range", student_range),
+        "10": ("Filter Students by Year of Study", filter_students),
+        "11": ("Import student data from CSV", import_csv),
+        "12": ("Export student data to CSV", export),
+        "13": ("Generate Student Distribution by Year chart", generate_distribution_chart),
+        "14": ("Manage Users", manage_users_menu),
+        "15": ("Logout", login)
+    }
+
+    user_options = {
+        "1": ("Display all student records", display_all_students),
+        "2": ("Search for a student by ID or Name", search),
+        "3": ("Reset Password", reset_password)
+    }
+
+    common_options = {
+        "4": ("Logout", login),
+        "0": ("Exit the program", lambda: exit())
+    }
+
+    options = admin_options | common_options if role == "admin" else user_options | common_options
+
     while True:
-        print(
-            Fore.MAGENTA + "--- Student Course Registration System --- \n"  +
-            Fore.BLUE + "--- Admin Menu --- \n"  + Style.RESET_ALL +
-            "1: Display all student records \n"
-            "2: Add a new student record \n"
-            "3: Remove student by ID \n"
-            "4: Enroll student for a new course \n"
-            "5: Remove student from course \n"
-            "6: Sort students by Year of Study \n"
-            "7: Sort students by Num of Registered Course \n"
-            "8: Search for a student by ID or Name \n"
-            "9: Search Student ID by range \n"
-            "10: Filter Students by Year of Study \n"
-            "11: Import student data from CSV \n"
-            "12: Export student data to CSV \n"
-            "13: Generate Student Distribution by Year chart \n"
-            "14: Manage Users \n"
-            "15: Logout  \n"
-            "0: Exit the program"
-        )
+        print(Fore.MAGENTA + "--- Student Course Registration System ---")
+        print(Fore.BLUE + f"--- {role.capitalize()} Menu ---" + Style.RESET_ALL)
 
-        choice = input(Fore.CYAN + "Enter your choice: " +Style.RESET_ALL)
-        if choice == "1":
-            display_all_students()
-        elif choice == "2":
-            add_student()
-        elif choice == "3":
-            remove_student_by_id()
-        elif choice == "4":
-            enroll_student()
-        elif choice == "5":
-            remove_course()
-        elif choice == "6":
-            sort_year()
-        elif choice == "7":
-            sort_course()
-        elif choice == "8":
-            search()
-        elif choice == "9":
-            student_range()
-        elif choice == "10":
-            filter_students()
-        elif choice == "11":
-            import_csv()
-        elif choice == "12":
-            export()
-        elif choice == "13":
-            generate_distribution_chart()
-        elif choice == "14":
-            manage_users_menu()
-        elif choice == "15":
-            print(Fore.GREEN + "You have successfully logged out! \n")
-            login()
-        elif choice == "0":
-            print(Fore.RED + "Exiting the programme...")
-            logging.info(f"Admin has exited the programme")
-            exit()
+        for key, (desc, _) in options.items():
+            print(f"{key}: {desc}")
+
+        choice = input(Fore.CYAN + "Enter your choice: " + Style.RESET_ALL)
+
+        if choice in options:
+            print()  # spacing
+            options[choice][1]()  # Call the corresponding function
         else:
-            print(Fore.RED + "Invalid Option, Please enter an input from 0-15 \n")
-            logging.warning(f"Invalid menu option entered")
-
+            print(Fore.RED + "Invalid Option. Please enter a valid input.\n")
+            logging.warning(f"Invalid menu option entered for {role}.")
 
 # Menu to manage users
 def manage_users_menu():
@@ -451,7 +437,7 @@ def manage_users_menu():
 
     choice = input(Fore.CYAN + "Enter your choice: " +Style.RESET_ALL)
     if choice == "1":
-        admin_menu()
+        main_menu(role="admin")
     elif choice == "2":
         display_all_users()
     elif choice == "3":
@@ -461,43 +447,10 @@ def manage_users_menu():
     elif choice == "0":
         print(Fore.RED + "Exiting the programme...")
         logging.info(f"Admin has exited the programme")
-        exit()
+        lambda: exit()
     else:
         print(Fore.RED + "Invalid Option, Please enter an input from 0-4 \n")
         logging.warning(f"Invalid menu option entered")
-
-
-# User menu when user is logged in
-def user_menu():
-    load_students_data()
-    while True:
-        print(
-            Fore.MAGENTA + "--- Student Course Registration System --- \n" +
-            Fore.BLUE + "--- User Menu --- \n" + Style.RESET_ALL +
-            "1: Display all student records \n"
-            "2: Search for a student by ID or Name \n"
-            "3: Reset Password  \n"
-            "4: Logout  \n"
-            "0: Exit the program "
-        )
-
-        choice = input(Fore.CYAN + "Enter your choice: " +Style.RESET_ALL)
-        if choice == "1":
-            display_all_students()
-        elif choice == "2":
-            search()
-        elif choice == "3":
-            reset_password()
-        elif choice == "4":
-            print(Fore.GREEN + "You have successfully logged out! \n")
-            login()
-        elif choice == "0":
-            print(Fore.RED + "Exiting the programme...")
-            logging.info(f"User has exited the programme")
-            exit()
-        else:
-            print(Fore.RED + "Invalid Option, Please enter an input from 0-4 \n")
-            logging.warning(f"Invalid menu option entered")
 
 
 # Function to display all users
@@ -505,7 +458,7 @@ def display_all_users():
     print(Fore.CYAN + "\nDisplay Of All User Records:" + Style.RESET_ALL)
     print(tabulate(user, headers="keys", tablefmt="fancy_grid"))
 
-# Loads the json file for persisten storage
+# Loads the json file for persistent storage
 def load_students_data():
     global students
     if os.path.exists("students_data.json"):
