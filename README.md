@@ -1,6 +1,6 @@
 # IT2653 - Data Structure and Algorithms (DSA) Assignment 
 
-This is a combined effort of both Assignment 1 and 2 
+This combines Assignments 1 and 2.
 
 ## Install Required Dependencies
 
@@ -8,20 +8,20 @@ This is a combined effort of both Assignment 1 and 2
   pip install -r requirements.txt
 ```
 
-### Features in Assignment 1
+### Features 
 
 - Logging 
 - Access Control 
-- Persistent Storage using JSON Dump
-- Lock account after 2 wrong password attempts
+- Persistent Storage of Student and User Data using JSON 
+- Lock the account after 2 wrong password attempts
 - Reset Password
-- Hashing of password using SHA-256
-- Welcome Text to Speech(TTS) Message 
+- Hashing passwords using SHA-256
+- Text to Speech(TTS) Message 
 - List Student ID by Range 
 - Filter Students by Year of Study
 - Export to CSV
-- Import CSV - use 'testing.csv' for this feature
-- Student Distribution Chart By Year, Pie/Bar Chart
+- Import CSV File - use 'testing.csv' to try out this feature
+- Student Distribution Chart By Year: Pie & Bar Chart
 
 ## License
 
