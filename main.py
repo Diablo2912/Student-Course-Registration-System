@@ -373,7 +373,7 @@ def user_activation():
 
 # Admin menu when admin is logged in
 def main_menu(role):
-    load_students_data()
+    load_data()
 
     # Define menu options by role
     admin_options = {
@@ -425,6 +425,7 @@ def main_menu(role):
 
 # Menu to manage users
 def manage_users_menu():
+    load_data()
     print(
         Fore.MAGENTA + "--- Student Course Registration System --- \n"  +
         Fore.BLUE + "--- Manage Users --- \n" + Style.RESET_ALL +
@@ -447,27 +448,27 @@ def manage_users_menu():
     elif choice == "0":
         print(Fore.RED + "Exiting the programme...")
         logging.info(f"Admin has exited the programme")
-        lambda: exit()
+        exit()
     else:
         print(Fore.RED + "Invalid Option, Please enter an input from 0-4 \n")
         logging.warning(f"Invalid menu option entered")
 
 # Loads the json file for persistent storage
-def load_students_data():
-    global students
+def load_data():
+    global students, user
     if os.path.exists("students_data.json"):
         try:
             with open("students_data.json", "r") as f:
                 students = json.load(f)
-                print(Fore.GREEN + f"Loaded {len(students)} student(s) from students_data.json.\n")
+                print(Fore.GREEN + f"Loaded {len(students)} student(s) from students_data.json.")
         except Exception as e:
             print(Fore.RED + f"Failed to load student data: {e}")
             logging.error(f"Error loading students data: {e}")
 
-    elif os.path.exists("user_data.json"):
+    if os.path.exists("user_data.json"):
         try:
             with open("user_data.json", "r") as f:
-                students = json.load(f)
+                user = json.load(f)
                 print(Fore.GREEN + f"Loaded {len(user)} user(s) from user_data.json.\n")
         except Exception as e:
             print(Fore.RED + f"Failed to load user data: {e}")
@@ -475,6 +476,10 @@ def load_students_data():
 
 # Function to display all users
 def display_all_users():
+    if not user:
+        print(Fore.RED + "No students found.")
+        return
+
     print(Fore.CYAN + "\nDisplay Of All User Records:" + Style.RESET_ALL)
     print(tabulate(user, headers="keys", tablefmt="fancy_grid"))
 
