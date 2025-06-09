@@ -11,6 +11,7 @@ import os
 from gtts import gTTS
 from playsound import playsound
 import hashlib
+import json
 
 # Language for gTTS
 language = "en"
@@ -20,7 +21,7 @@ logging.basicConfig(filename='student_registration.log',
                     level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Initialize colorama to auto-reset colors after each print statement
+# Initialise colorama to auto-reset colors after each print statement
 init(autoreset=True)
 
 # Student Class
@@ -40,6 +41,37 @@ class Student:
         pattern = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
         return re.match(pattern, email) is not None
 
+    def add_courses(self, courses):
+        for course in courses:
+            course = course.strip().upper()
+            if not re.match(r'^[A-Z]{2}\d{3}$', course):
+                print(Fore.RED + f"Invalid course code format: {course}" + Style.RESET_ALL)
+                continue
+            if course in self.course:
+                print(Fore.RED + f"Already enrolled in {course}" + Style.RESET_ALL)
+            else:
+                self.course.append(course)
+                print(Fore.GREEN + f"Enrolled in {course}" + Style.RESET_ALL)
+
+    def remove_courses(self, courses):
+        for course in courses:
+            course = course.strip().upper()
+            if not re.match(r'^[A-Z]{2}\d{3}$', course):
+                print(Fore.RED + f"Invalid course code format: {course}" + Style.RESET_ALL)
+                continue
+            if course not in self.course:
+                print(Fore.RED + f"Not enrolled in {course}" + Style.RESET_ALL)
+            else:
+                self.course.remove(course)
+                print(Fore.GREEN + f"Removed from {course}" + Style.RESET_ALL)
+
+    def display_student_details(self):
+        print(Fore.CYAN + f"\nStudent ID: {self.student_id}" + Style.RESET_ALL)
+        print(Fore.CYAN + f"Student Name: {self.student_name}" + Style.RESET_ALL)
+        print(Fore.CYAN + f"Email: {self.email}" + Style.RESET_ALL)
+        print(Fore.CYAN + f"Year: {self.year}" + Style.RESET_ALL)
+        print(Fore.CYAN + f"Status: {self.status}" + Style.RESET_ALL)
+        print(Fore.CYAN + f"Enrolled Courses: {', '.join(self.course)}" + Style.RESET_ALL)
 
 # Empty student list to start from scratch
 # students = [ ]
@@ -341,6 +373,7 @@ def user_activation():
 
 # Admin menu when admin is logged in
 def admin_menu():
+    load_students_data()
     while True:
         print(
             Fore.MAGENTA + "--- Student Course Registration System --- \n"  +
@@ -363,7 +396,7 @@ def admin_menu():
             "0: Exit the program"
         )
 
-        choice = input("Enter your choice: ")
+        choice = input(Fore.CYAN + "Enter your choice: " +Style.RESET_ALL)
         if choice == "1":
             display_all_students()
         elif choice == "2":
@@ -416,7 +449,7 @@ def manage_users_menu():
         "0: Exit the program"
     )
 
-    choice = input("Enter your choice: ")
+    choice = input(Fore.CYAN + "Enter your choice: " +Style.RESET_ALL)
     if choice == "1":
         admin_menu()
     elif choice == "2":
@@ -436,6 +469,7 @@ def manage_users_menu():
 
 # User menu when user is logged in
 def user_menu():
+    load_students_data()
     while True:
         print(
             Fore.MAGENTA + "--- Student Course Registration System --- \n" +
@@ -447,7 +481,7 @@ def user_menu():
             "0: Exit the program "
         )
 
-        choice = input("Enter your choice: ")
+        choice = input(Fore.CYAN + "Enter your choice: " +Style.RESET_ALL)
         if choice == "1":
             display_all_students()
         elif choice == "2":
@@ -471,6 +505,17 @@ def display_all_users():
     print(Fore.CYAN + "\nDisplay Of All User Records:" + Style.RESET_ALL)
     print(tabulate(user, headers="keys", tablefmt="fancy_grid"))
 
+# Loads the json file for persisten storage
+def load_students_data():
+    global students
+    if os.path.exists("students_data.json"):
+        try:
+            with open("students_data.json", "r") as f:
+                students = json.load(f)
+                print(Fore.GREEN + f"Loaded {len(students)} student(s) from students_data.json.\n")
+        except Exception as e:
+            print(Fore.RED + f"Failed to load student data: {e}")
+            logging.error(f"Error loading students data: {e}")
 
 # Function to display all students and information
 def display_all_students():
@@ -478,19 +523,24 @@ def display_all_students():
         print(Fore.RED + "No students found.")
         return
 
-    # Convert Status:True to Full time and Status:False to Part-Time for display
+    # Create a display-ready copy of students with formatted status
+    display_data = []
     for student in students:
-        student["Status"] = "Full-Time" if student["Status"] else "Part-Time"
+        display_data.append({
+            "Student ID": student["Student ID"],
+            "Student Name": student["Student Name"],
+            "Email": student["Email"],
+            "Courses": ', '.join(student["Courses"]),  # join list for display
+            "Year": student["Year"],
+            "Status": "Full-Time" if student["Status"] else "Part-Time"
+        })
 
-    # Sort function to sort Student ID in descending order for display
-    n = len(students)
-    for i in range(n):
-        for j in range(0, n - i - 1):
-            if students[j]["Student ID"] > students[j + 1]["Student ID"]:  # < when descending
-                students[j], students[j + 1] = students[j + 1], students[j]
+    # Sort by Student ID in descending order
+    display_data.sort(key=lambda x: x["Student ID"], reverse=False)
 
-    print(Fore.CYAN + "\nDisplay Of All Student Records: \n" + Style.RESET_ALL + tabulate(students, headers="keys",tablefmt="fancy_grid"))
-
+    # Print formatted table
+    print(Fore.CYAN + "\nDisplay Of All Student Records:\n" + Style.RESET_ALL)
+    print(tabulate(display_data, headers="keys", tablefmt="fancy_grid"))
 
 # Function to add student
 def add_student():
@@ -513,10 +563,8 @@ def add_student():
                     logging.warning(f"Attempted to add student with an existing ID: {student_id}")
                     break  # when duplicate is found exit for loop
 
-
             else:
                 break  # when no duplicate is found exit while loop
-
 
         except ValueError:
             print(Fore.RED + "Invalid Student ID input. Try again" )
@@ -529,7 +577,6 @@ def add_student():
         if not student_name:
             print(Fore.RED + "Invalid student name entered. Please enter a valid name" )
             logging.error("Attempted to add student with an invalid name.")
-
 
         else:
             break
@@ -551,7 +598,6 @@ def add_student():
                 continue
 
             break  # if email valid break
-
 
         except ValueError:
             print(Fore.RED + "Invalid email format. Please enter a valid email.")
@@ -586,7 +632,6 @@ def add_student():
             else:
                 break
 
-
         except ValueError:
             print(Fore.RED + "Invalid year of study. Enter a valid Year of Study")
             logging.error("Invalid year of study input.")
@@ -607,7 +652,6 @@ def add_student():
                 logging.warning(f"Invalid status input entered: {status_input}.")
                 continue
 
-
         except ValueError:
             print(Fore.RED + "Invalid status. Enter a valid Year of Study")
             logging.error("Invalid status input")
@@ -622,9 +666,14 @@ def add_student():
         "Status": status
     })
 
-    logging.info(
-        f"New student added: ID: {student_id}, Name: {student_name}, Email: {email}, Course: {courses}, Year: {year}, Status: {status}")
+    logging.info(f"New student added: ID: {student_id}, Name: {student_name}, Email: {email}, Course: {courses}, Year: {year}, Status: {status}")
     print(Fore.GREEN + f"Student {student_name} added successfully. \n")
+
+    out_file = open("students_data.json", "w")
+
+    json.dump(students, out_file, indent=6)
+
+    out_file.close()
 
 
 # Function to add users
@@ -674,10 +723,8 @@ def remove_student_by_id():
             else:
                 print(Fore.RED + "Student ID not found. Please enter a valid student ID.")
 
-
         except ValueError:
             print(Fore.RED + "Invalid input. Please enter a valid Student ID.")
-
 
 # Function to enroll students
 def enroll_student():
@@ -699,8 +746,7 @@ def enroll_student():
                 print(Fore.RED + "Student ID not found." )
                 continue
 
-            print(
-                Fore.GREEN + f"Student {student['Student Name']}, ID: {student_id} has been chosen.")
+            print(Fore.GREEN + f"Student {student['Student Name']}, ID: {student_id} has been chosen.")
 
             while True:
                 courses_input = input("Enter course codes (comma-seperated) (Enter 'E' to exit): ")
@@ -719,24 +765,19 @@ def enroll_student():
                     course = course.upper()
 
                     if not re.match(r'^[A-Z]{2}\d{3}$', course):
-                        print(
-                            Fore.RED + f"Invalid course code: {course}. Each course must have 2 letters followed by 3 digits.")
+                        print(Fore.RED + f"Invalid course code: {course}. Each course must have 2 letters followed by 3 digits.")
                         continue
 
                     if course in student["Courses"]:
-                        print(
-                            Fore.RED + f"Student {student['Student Name']}, ID: {student_id} is already enrolled in {course}.")
+                        print(Fore.RED + f"Student {student['Student Name']}, ID: {student_id} is already enrolled in {course}.")
                         continue
 
                     student["Courses"].append(course)
-                    print(
-                        Fore.GREEN + f"Student {student['Student Name']}, ID: {student_id} has been successfully enrolled in {course}.")
+                    print(Fore.GREEN + f"Student {student['Student Name']}, ID: {student_id} has been successfully enrolled in {course}.")
                     logging.info(f"Student {student['Student Name']}, ID: {student_id} enrolled in {course}")
-
 
         except ValueError:
             print(Fore.RED + "Invalid Student ID. Please enter a valid student ID.")
-
 
 # Function to remove course for student by ID
 def remove_course():
@@ -758,8 +799,7 @@ def remove_course():
                 print(Fore.RED + "Student ID not found." )
                 continue
 
-            print(
-                Fore.GREEN + f"Student {student['Student Name']}, ID: {student_id} has been chosen.")
+            print(Fore.GREEN + f"Student {student['Student Name']}, ID: {student_id} has been chosen.")
 
             while True:
                 courses_input = input("Enter course codes (comma-seperated) (Enter 'E' to exit): ")
@@ -868,8 +908,7 @@ def search():
     search_input = input("Enter Student ID or Student Name: ").strip()
     for student in students:
         if str(student["Student ID"]) == search_input or student["Student Name"].lower() == search_input.lower():
-            print(Fore.CYAN + "\nSearched Student Details:\n" + tabulate([student], headers="keys",
-                                                                                           tablefmt="fancy_grid"))
+            print(Fore.CYAN + "\nSearched Student Details:\n" + tabulate([student], headers="keys",tablefmt="fancy_grid" + Style.RESET_ALL))
             break  # stop after first match
     else:
         logging.warning(f"Student with ID or name {search_input} not found.")
