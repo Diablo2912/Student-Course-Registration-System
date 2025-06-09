@@ -1,0 +1,22 @@
+[
+      {
+            "Username": "user01",
+            "Password": "aad415a73c4cef1ef94a5c00b2642b571a3e5494536328ad960db61889bd9368",
+            "Active": true
+      },
+      {
+            "Username": "user02",
+            "Password": "76431fac8a187241af8f3f37156deb94732f52fb45eb07ec4f462051bd82f183",
+            "Active": true
+      },
+      {
+            "Username": "test",
+            "Password": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+            "Active": false
+      },
+      {
+            "Username": "ling",
+            "Password": "6cd4c9c389b460a1f60357bebdec27a788c4abbf1aa3dead4d3c0cfd0cebea2a",
+            "Active": true
+      }
+]
