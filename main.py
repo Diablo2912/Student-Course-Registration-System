@@ -291,6 +291,8 @@ def login():
             for u in user:
                 if u["Username"] == username:
                     u["Active"] = False
+            with open("users_data.json", "w") as out_file:
+                json.dump(user, out_file, indent=6)
             logging.warning(f"Too many failed password attempts for user: {username}")
             login()  # Exit after failed password attempts
 
@@ -328,6 +330,8 @@ def reset_password():
                 u["Password"] = new_password  # update the user password
                 print(Fore.GREEN + f"Password for {username} has been successfully reset. \n")
                 logging.info(f'{username} has successfully reset their password')
+                with open("users_data.json", "w") as out_file:
+                    json.dump(user, out_file, indent=6)
                 break
 
         login()
@@ -341,15 +345,13 @@ def user_activation():
     for u in user:
         if u["Username"] == username:
             user_found = True
-            # Check activation/deactivation based on user input
             activation_input = input("Activate [1] or Deactivate [2] account: ")
 
-            # Ensure valid input
             if activation_input not in ["1", "2"]:
                 print(Fore.RED + "Invalid option. Please enter 1 or 2.")
                 return
 
-            if activation_input == "1":  # Activate account
+            if activation_input == "1":
                 if u["Active"]:
                     print(Fore.RED + f"User {username} is already active.")
                 else:
@@ -357,15 +359,18 @@ def user_activation():
                     print(Fore.GREEN + f"User {username} has been activated.")
                     logging.warning(f"User {username} has been activated successfully")
 
-
-            elif activation_input == "2":  # Deactivate account
+            elif activation_input == "2":
                 if not u["Active"]:
                     print(Fore.RED + f"User {username} is already deactivated.")
                 else:
                     u["Active"] = False
                     print(Fore.GREEN + f"User {username} has been deactivated.")
                     logging.warning(f"User {username} has been deactivated successfully")
-            break  # Exit the loop once the operation is performed
+
+            # Save the updated user list
+            with open("users_data.json", "w") as out_file:
+                json.dump(user, out_file, indent=6)
+            break  # exit loop after update
 
     if not user_found:
         print(Fore.RED + "User not found")
@@ -391,21 +396,20 @@ def main_menu(role):
         "12": ("Export student data to CSV", export),
         "13": ("Generate Student Distribution by Year chart", generate_distribution_chart),
         "14": ("Manage Users", manage_users_menu),
-        "15": ("Logout", login)
+        "15": ("Logout", login),
+        "0": ("Exit the program", lambda: exit())
     }
 
     user_options = {
         "1": ("Display all student records", display_all_students),
         "2": ("Search for a student by ID or Name", search),
-        "3": ("Reset Password", reset_password)
-    }
-
-    common_options = {
+        "3": ("Reset Password", reset_password),
         "4": ("Logout", login),
         "0": ("Exit the program", lambda: exit())
     }
 
-    options = admin_options | common_options if role == "admin" else user_options | common_options
+
+    options = admin_options  if role == "admin" else user_options
 
     while True:
         print(Fore.MAGENTA + "--- Student Course Registration System ---")
@@ -459,7 +463,7 @@ def load_data():
         try:
             with open("students_data.json", "r") as f:
                 students = json.load(f)
-                print(Fore.GREEN + f"Loaded {len(students)} student(s) from students_data.json.")
+                print(Fore.GREEN + f"Successfully loaded {len(students)} student(s) from students_data.json.")
         except Exception as e:
             print(Fore.RED + f"Failed to load student data: {e}")
             logging.error(f"Error loading students data: {e}")
@@ -468,7 +472,7 @@ def load_data():
         try:
             with open("user_data.json", "r") as f:
                 user = json.load(f)
-                print(Fore.GREEN + f"Loaded {len(user)} user(s) from user_data.json.\n")
+                print(Fore.GREEN + f"Successfully l {len(user)} user(s) from user_data.json.\n")
         except Exception as e:
             print(Fore.RED + f"Failed to load user data: {e}")
             logging.error(f"Error loading user data: {e}")
@@ -691,6 +695,12 @@ def remove_student_by_id():
         except ValueError:
             print(Fore.RED + "Invalid input. Please enter a valid Student ID.")
 
+    out_file = open("students_data.json", "w")
+
+    json.dump(students, out_file, indent=6)
+
+    out_file.close()
+
 # Function to enroll students
 def enroll_student():
     while True:
@@ -740,9 +750,12 @@ def enroll_student():
                     student["Courses"].append(course)
                     print(Fore.GREEN + f"Student {student['Student Name']}, ID: {student_id} has been successfully enrolled in {course}.")
                     logging.info(f"Student {student['Student Name']}, ID: {student_id} enrolled in {course}")
+                    with open("students_data.json", "w") as out_file:
+                        json.dump(students, out_file, indent=6)
 
         except ValueError:
             print(Fore.RED + "Invalid Student ID. Please enter a valid student ID.")
+
 
 # Function to remove course for student by ID
 def remove_course():
@@ -795,10 +808,12 @@ def remove_course():
                     student["Courses"].remove(course)
                     print(Fore.GREEN + f"Student {student['Student Name']}, ID: {student_id} has been successfully removed from {course}." )
                     logging.info(f"Student {student['Student Name']}, ID: {student_id} removed from {course}")
-
+                    with open("students_data.json", "w") as out_file:
+                        json.dump(students, out_file, indent=6)
 
         except ValueError:
             print(Fore.RED + "Invalid Student ID. Please enter a valid student ID.")
+
 
 
 # Bubble Sort - Ascending/Descending

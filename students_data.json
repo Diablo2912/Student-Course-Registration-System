@@ -51,8 +51,7 @@
             "Email": "crstiano@gmail.com",
             "Courses": [
                   "IT100",
-                  "SF209",
-                  "CS505"
+                  "SF209"
             ],
             "Year": 3,
             "Status": false
@@ -62,20 +61,11 @@
             "Student Name": "Yuna",
             "Email": "yuna@gmail.com",
             "Courses": [
-                  "SF500"
+                  "SF500",
+                  "IT100"
             ],
             "Year": 3,
             "Status": true
-      },
-      {
-            "Student ID": 10077,
-            "Student Name": "Samuel Lee",
-            "Email": "samuellee@gmail.com",
-            "Courses": [
-                  "IT101"
-            ],
-            "Year": 2,
-            "Status": false
       },
       {
             "Student ID": 10033,
