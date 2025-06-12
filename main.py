@@ -184,12 +184,13 @@ def two_factor_code():
 
 # def mail():
 
+
 # Login function
 def login():
     # Infinite username checking loop
     while True:
         try:
-            username = input(Fore.CYAN + "Enter Username (Type 'E' to quit, 'Reset PW' to reset password): " )
+            username = input(Fore.CYAN + "Enter Username (Type 'E' to quit, 'Reset PW' to reset password, 'Register' to register new account): ")
 
             if username == 'E':
                 print(Fore.YELLOW + "Exiting login process." )
@@ -199,9 +200,13 @@ def login():
                 reset_password()
                 return  # Exit after password reset
 
+            elif username == "Register":
+                register()
+                return
+
             while not username:  # Check if the username is empty
                 print(Fore.RED + "Invalid Username. Please try again")
-                username = input(Fore.CYAN + "Enter Username (Type 'E' to quit, 'Reset PW' to reset password): ")
+                username = input(Fore.CYAN + "Enter Username (Type 'E' to quit, 'Reset PW' to reset password, 'Register' to register new account): ")
 
             # Admin Login
             # Check if the username exists in admin
@@ -306,6 +311,57 @@ def login():
         except ValueError:
             print(Fore.RED + "Invalid Input" )
             continue
+
+
+def register():
+    # Load existing users
+    with open("users_data.json", "r") as file:
+        users = json.load(file)
+
+    # Prompt for a unique username
+    while True:
+        username = input(Fore.YELLOW + "Enter username: ").strip()
+
+        if not username:
+            print(Fore.RED + "Username cannot be empty.")
+            continue
+
+        for u in users:
+            if u["Username"].lower() == username.lower():
+                print(Fore.RED + f"Username '{username}' already exists. Please enter a unique username.")
+                break
+        else:
+            # Username is valid and unique
+            break
+
+    # Prompt for password and confirmation
+    while True:
+        password = input(Fore.YELLOW + "Enter password: ")
+        password_match = input(Fore.YELLOW + "Re-enter password: ")
+
+        if password != password_match:
+            print(Fore.RED + "Passwords do not match. Try again.")
+            continue
+
+        hashed_password = hash_pw(password)
+        break
+
+    # Append the new user
+    users.append({
+        "Username": username,
+        "Password": hashed_password,
+        "Active": True
+    })
+
+    # Save to file
+    with open("users_data.json", "w") as out_file:
+        json.dump(users, out_file, indent=4)
+
+    logging.info(f"New user added: {username}")
+    print(Fore.GREEN + f"User '{username}' registered successfully.\n")
+
+    # Call login function if needed
+    login()
 
 
 # Reset password function
@@ -539,8 +595,7 @@ def add_student():
             for student in students:
                 if student["Student ID"] == student_id:
                     # Error message in red
-                    print(
-                        Fore.RED + f"Student ID {student_id} already exists. Please enter a unique ID.")
+                    print(Fore.RED + f"Student ID {student_id} already exists. Please enter a unique ID.")
                     logging.warning(f"Attempted to add student with an existing ID: {student_id}")
                     break  # when duplicate is found exit for loop
 
