@@ -14,6 +14,8 @@ import hashlib
 import json
 import random
 import smtplib
+import ssl
+from email.message import EmailMessage
 
 # Language for gTTS
 language = "en"
@@ -182,8 +184,29 @@ def two_factor_code():
     x= random.randint(0, 1000000)
     return x
 
-# def mail():
+def mail():
+    # Define email sender and receiver
+    email_sender = 'glenloo2021@gmail.com'
+    email_password = 'xhex clxh rvxj aucu'
+    email_receiver = 'glenloo2007@gmail.com'
 
+    # Set the subject and body of the email
+    subject = ''
+    body = """ """
+
+    em = EmailMessage()
+    em['From'] = email_sender
+    em['To'] = email_receiver
+    em['Subject'] = subject
+    em.set_content(body)
+
+    # Add SSL (layer of security)
+    context = ssl.create_default_context()
+
+    # Log in and send the email
+    with smtplib.SMTP_SSL('smtp.gmail.com', 465, context=context) as smtp:
+        smtp.login(email_sender, email_password)
+        smtp.sendmail(email_sender, email_receiver, em.as_string())
 
 # Login function
 def login():
@@ -1021,8 +1044,7 @@ def filter_students():
 
 # import pandas - export to csv
 def export():
-    export_csv_filename = input(
-        Fore.CYAN + "Enter the name of the file you wish to save as (with .csv extension): ")
+    export_csv_filename = input(Fore.CYAN + "Enter the name of the file you wish to save as (with .csv extension): ")
 
     df = pd.DataFrame(students)
 
