@@ -12,6 +12,8 @@ from gtts import gTTS
 from playsound import playsound
 import hashlib
 import json
+import random
+import smtplib
 
 # Language for gTTS
 language = "en"
@@ -176,6 +178,12 @@ def play_and_cleanup_audio(filename):
         except Exception as e:
             logging.warning(f"Failed to delete audio file: {e}")
 
+def two_factor_code():
+    x= random.randint(0, 1000000)
+    return x
+
+# def mail():
+
 # Login function
 def login():
     # Infinite username checking loop
@@ -186,7 +194,6 @@ def login():
             if username == 'E':
                 print(Fore.YELLOW + "Exiting login process." )
                 return  # Exit the login function
-
 
             elif username == "Reset PW":
                 reset_password()
@@ -316,25 +323,36 @@ def reset_password():
         break
 
     while True:
-        password = input(Fore.YELLOW + "Enter new password: " )
-
+        password = input(Fore.YELLOW + "Enter new password: ")
         new_password = hash_pw(password)
 
-        # Checks if old pw = new pw
+        # Check if new password matches any existing password
+        old_passwords = [u["Password"] for u in user]
+        if new_password in old_passwords:
+            print(Fore.RED + "New password cannot be same as the old password.")
+            continue  # Ask again
+
+        # Confirm password
+        password_match = input("Re-Enter password: ")
+        if password_match != password:
+            print(Fore.RED + "Passwords do not match. Try again.")
+            continue  # Ask again
+
+        # Update password for current user
         for u in user:
-            if u["Password"] == new_password:
-                # Error message in red
-                print(Fore.RED + f"New password cannot be same as the old password")
-                break
-            else:
-                u["Password"] = new_password  # update the user password
-                print(Fore.GREEN + f"Password for {username} has been successfully reset. \n")
-                logging.info(f'{username} has successfully reset their password')
-                with open("users_data.json", "w") as out_file:
-                    json.dump(user, out_file, indent=6)
+            if u["Username"] == username:
+                u["Password"] = new_password
                 break
 
-        login()
+        print(Fore.GREEN + f"Password for {username} has been successfully reset.\n")
+        logging.info(f'{username} has successfully reset their password')
+
+        with open("users_data.json", "w") as out_file:
+            json.dump(user, out_file, indent=6)
+
+        break  # Exit the while loop after success
+
+    login()
 
 
 # Change user's "Active" status
