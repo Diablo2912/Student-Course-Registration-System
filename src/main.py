@@ -1,6 +1,5 @@
 import ast
 import numpy as np
-import pandas as pd
 import logging
 import re
 from colorama import Fore, Style, init
@@ -15,11 +14,14 @@ import json
 import random
 import smtplib
 
+from sorting_algorithms import *
+from pandas import *
+
 # Language for gTTS
 language = "en"
 
 # Logging
-logging.basicConfig(filename='student_registration.log',
+logging.basicConfig(filename='../student_registration.log',
                     level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -298,7 +300,7 @@ def login():
             for u in user:
                 if u["Username"] == username:
                     u["Active"] = False
-            with open("users_data.json", "w") as out_file:
+            with open("../users_data.json", "w") as out_file:
                 json.dump(user, out_file, indent=6)
             logging.warning(f"Too many failed password attempts for user: {username}")
             login()  # Exit after failed password attempts
@@ -347,7 +349,7 @@ def reset_password():
         print(Fore.GREEN + f"Password for {username} has been successfully reset.\n")
         logging.info(f'{username} has successfully reset their password')
 
-        with open("users_data.json", "w") as out_file:
+        with open("../users_data.json", "w") as out_file:
             json.dump(user, out_file, indent=6)
 
         break  # Exit the while loop after success
@@ -386,7 +388,7 @@ def user_activation():
                     logging.warning(f"User {username} has been deactivated successfully")
 
             # Save the updated user list
-            with open("users_data.json", "w") as out_file:
+            with open("../users_data.json", "w") as out_file:
                 json.dump(user, out_file, indent=6)
             break  # exit loop after update
 
@@ -400,21 +402,24 @@ def main_menu(role):
 
     # Define menu options by role
     admin_options = {
-        "1": ("Display all student records", display_all_students),
-        "2": ("Add a new student record", add_student),
-        "3": ("Remove student by ID", remove_student_by_id),
-        "4": ("Enroll student for a new course", enroll_student),
-        "5": ("Remove student from course", remove_course),
-        "6": ("Sort students by Year of Study", sort_year),
-        "7": ("Sort students by Num of Registered Course", sort_course),
-        "8": ("Search for a student by ID or Name", search),
-        "9": ("Search Student ID by range", student_range),
-        "10": ("Filter Students by Year of Study", filter_students),
-        "11": ("Import student data from CSV", import_csv),
-        "12": ("Export student data to CSV", export),
-        "13": ("Generate Student Distribution by Year chart", generate_distribution_chart),
-        "14": ("Manage Users", manage_users_menu),
-        "15": ("Logout", login),
+        "1": ("Dashboard", 1),
+        "2": ("Display all student records", display_all_students),
+        "3": ("Add a new student record", add_student),
+        "4": ("Remove student by ID", remove_student_by_id),
+        "5": ("Enroll student for a new course", enroll_student),
+        "6": ("Remove student from course", remove_course),
+        "7": ("Sort students by Year of Study - Bubble Sort", sort_year),
+        "8": ("Quick Sort on Year of Study with Secondary Sort (on Name)", 1),
+        "9": ("Merge Sort by Num of Registered Course and Student ID", 1),
+        "10": ("Sort students by Num of Registered Course - Selection Sort", sort_course),
+        "11": ("Search for a student by ID or Name", search),
+        "12": ("Search Student ID by range", student_range),
+        "13": ("Filter Students by Year of Study", filter_students),
+        "14": ("Import student data from CSV", import_csv),
+        "15": ("Export student data to CSV", export),
+        "16": ("Generate Student Distribution by Year chart", generate_distribution_chart),
+        "17": ("Manage Users", manage_users_menu),
+        "18": ("Logout", login),
         "0": ("Exit the program", lambda: exit())
     }
 
@@ -477,9 +482,9 @@ def manage_users_menu():
 # Loads the json file for persistent storage
 def load_data():
     global students, user
-    if os.path.exists("students_data.json"):
+    if os.path.exists("../students_data.json"):
         try:
-            with open("students_data.json", "r") as f:
+            with open("../students_data.json", "r") as f:
                 students = json.load(f)
                 print(Fore.GREEN + f"Successfully loaded {len(students)} student(s) from students_data.json.")
         except Exception as e:
@@ -650,7 +655,7 @@ def add_student():
     logging.info(f"New student added: ID: {student_id}, Name: {student_name}, Email: {email}, Course: {courses}, Year: {year}, Status: {status}")
     print(Fore.GREEN + f"Student {student_name} added successfully. \n")
 
-    out_file = open("students_data.json", "w")
+    out_file = open("../students_data.json", "w")
 
     json.dump(students, out_file, indent=6)
 
@@ -713,7 +718,7 @@ def remove_student_by_id():
         except ValueError:
             print(Fore.RED + "Invalid input. Please enter a valid Student ID.")
 
-    out_file = open("students_data.json", "w")
+    out_file = open("../students_data.json", "w")
 
     json.dump(students, out_file, indent=6)
 
@@ -768,7 +773,7 @@ def enroll_student():
                     student["Courses"].append(course)
                     print(Fore.GREEN + f"Student {student['Student Name']}, ID: {student_id} has been successfully enrolled in {course}.")
                     logging.info(f"Student {student['Student Name']}, ID: {student_id} enrolled in {course}")
-                    with open("students_data.json", "w") as out_file:
+                    with open("../students_data.json", "w") as out_file:
                         json.dump(students, out_file, indent=6)
 
         except ValueError:
@@ -826,71 +831,12 @@ def remove_course():
                     student["Courses"].remove(course)
                     print(Fore.GREEN + f"Student {student['Student Name']}, ID: {student_id} has been successfully removed from {course}." )
                     logging.info(f"Student {student['Student Name']}, ID: {student_id} removed from {course}")
-                    with open("students_data.json", "w") as out_file:
+                    with open("../students_data.json", "w") as out_file:
                         json.dump(students, out_file, indent=6)
 
         except ValueError:
             print(Fore.RED + "Invalid Student ID. Please enter a valid student ID.")
 
-
-
-# Bubble Sort - Ascending/Descending
-# Sorted by year of study
-def sort_year():
-    sort_year_order = input(Fore.CYAN + "Sort Year of Study in Ascending or Descending order (A/D): ")
-
-    if sort_year_order == "A":
-        n = len(students)
-        for i in range(n):
-            for j in range(0, n - i - 1):
-                if students[j]["Year"] > students[j + 1]["Year"]:  # > when ascending
-                    students[j], students[j + 1] = students[j + 1], students[j]
-
-        print("Sorted by Year Of Study in Ascending Order: \n" + tabulate(students, headers="keys",
-                                                                          tablefmt="fancy_grid"))
-    elif sort_year_order == "D":
-        n = len(students)
-        for i in range(n):
-            for j in range(0, n - i - 1):
-                if students[j]["Year"] < students[j + 1]["Year"]:  # < when descending
-                    students[j], students[j + 1] = students[j + 1], students[j]
-
-        print("Sorted by Year Of Study in Descending Order: \n" + tabulate(students, headers="keys",tablefmt="fancy_grid"))
-
-    else:
-        print(Fore.RED + "Invalid Sort Order!")
-
-# Selection Sort - Ascending/Descending
-# Sorted by num of registered courses
-def sort_course():
-    sort_course_order = input(
-        Fore.CYAN + "Sort Num Of Course in Ascending or Descending order (A/D): ")
-
-    n = len(students)
-
-    if sort_course_order == "A":
-        for i in range(n - 1):
-            min_idx = i  # use min when it's ascending
-            for j in range(i + 1, n):
-                if len(students[j]['Courses']) < len(
-                        students[min_idx]['Courses']):  # use len as comparing by no of | < if ascending
-                    min_idx = j
-            students[i], students[min_idx] = students[min_idx], students[i]
-        print("Sorted by Num of Registered Courses in Ascending Order: \n" + tabulate(students, headers="keys",tablefmt="fancy_grid"))
-
-    elif sort_course_order == "D":
-        for i in range(n - 1):
-            max_idx = i  # use max when it's descending
-            for j in range(i + 1, n):
-                if len(students[j]['Courses']) > len(
-                        students[max_idx]['Courses']):  # use len as comparing by no of | > if descending
-                    max_idx = j
-            students[i], students[max_idx] = students[max_idx], students[i]
-        print("Sorted by Num of Registered Courses in Descending Order: \n" + tabulate(students, headers="keys",tablefmt="fancy_grid"))
-
-
-    else:
-        print(Fore.RED + "Invalid Sort Order!")
 
 
 # Search for student by id or name
@@ -963,70 +909,6 @@ def filter_students():
     else:
         print(Fore.YELLOW + "No students found in the selected year.")
 
-
-# import pandas - export to csv
-def export():
-    export_csv_filename = input(
-        Fore.CYAN + "Enter the name of the file you wish to save as (with .csv extension): ")
-
-    df = pd.DataFrame(students)
-
-    df.to_csv(f'{export_csv_filename}.csv', index=False)
-
-    print(Fore.GREEN + f"Data has been successfully exported to '{export_csv_filename}.csv'. \n")
-    logging.info(f"Data has been successfully exported to '{export_csv_filename}.csv'")
-
-
-# import pandas - import csv file
-def import_csv():
-    file_name = input(Fore.CYAN + "Enter the CSV file name (with .csv extension): ")
-
-    if not file_name:
-        print(Fore.RED + "File does not exist")
-        return
-
-    if not file_name.endswith('.csv'):
-        print(Fore.RED + "The file must have a .csv extension. Please try again.")
-        return
-
-    if not os.path.exists(file_name):
-        print(
-            Fore.RED + f"The file {file_name} does not exist. Please check the file name and try again." )
-        return
-
-    try:
-        # Read the CSV file into a pandas DataFrame
-        df = pd.read_csv(file_name)
-
-        # Validate if necessary columns exist in the CSV
-        required_columns = ['Student ID', 'Student Name', 'Email', 'Courses', 'Year', 'Status']
-        if not all(col in df.columns for col in required_columns):
-            print(
-                Fore.RED + f"CSV file must contain the following columns: {', '.join(required_columns)}")
-            return
-
-        # Convert 'Courses' from string to list
-        df['Courses'] = df['Courses'].apply(lambda x: ast.literal_eval(x) if isinstance(x, str) else x)
-
-        # Convert DataFrame to list of dictionaries
-        new_students = df.to_dict(orient='records')
-
-        # Add new students to the existing students list (without duplicates)
-        global students
-        for new_student in new_students:
-            # Check if the student ID already exists
-            if not any(student['Student ID'] == new_student['Student ID'] for student in students):
-                students.append(new_student)
-            else:
-                print(Fore.RED + f"Student ID {new_student['Student ID']} already exists. Skipping.")
-
-        print(Fore.GREEN + f"Student data from '{file_name}' has been successfully added to the current records.")
-        logging.info(f"Student data from '{file_name}' has been successfully added.")
-
-
-    except Exception as e:
-        print(Fore.RED + f"Error reading the CSV file: {e}")
-        logging.error(f"Error reading the CSV file: {e}")
 
 
 # Generate Pie & Bar chart using matplotlib
