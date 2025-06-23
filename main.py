@@ -2,6 +2,8 @@ import ast
 import numpy as np
 import logging
 import re
+
+import pandas as pd
 from colorama import Fore, Style, init
 from tabulate import tabulate
 import matplotlib.pyplot as plt
@@ -13,15 +15,14 @@ import hashlib
 import json
 import random
 import smtplib
+from collections import Counter
 
-from sorting_algorithms import *
-from pandas import *
 
 # Language for gTTS
 language = "en"
 
 # Logging
-logging.basicConfig(filename='../student_registration.log',
+logging.basicConfig(filename='student_registration.log',
                     level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -188,6 +189,8 @@ def two_factor_code():
 
 # Login function
 def login():
+    load_data()
+
     # Infinite username checking loop
     while True:
         try:
@@ -357,52 +360,12 @@ def reset_password():
     login()
 
 
-# Change user's "Active" status
-def user_activation():
-    username = input("Enter username to unlock account for: ")
-
-    user_found = False
-    for u in user:
-        if u["Username"] == username:
-            user_found = True
-            activation_input = input("Activate [1] or Deactivate [2] account: ")
-
-            if activation_input not in ["1", "2"]:
-                print(Fore.RED + "Invalid option. Please enter 1 or 2.")
-                return
-
-            if activation_input == "1":
-                if u["Active"]:
-                    print(Fore.RED + f"User {username} is already active.")
-                else:
-                    u["Active"] = True
-                    print(Fore.GREEN + f"User {username} has been activated.")
-                    logging.warning(f"User {username} has been activated successfully")
-
-            elif activation_input == "2":
-                if not u["Active"]:
-                    print(Fore.RED + f"User {username} is already deactivated.")
-                else:
-                    u["Active"] = False
-                    print(Fore.GREEN + f"User {username} has been deactivated.")
-                    logging.warning(f"User {username} has been deactivated successfully")
-
-            # Save the updated user list
-            with open("../users_data.json", "w") as out_file:
-                json.dump(user, out_file, indent=6)
-            break  # exit loop after update
-
-    if not user_found:
-        print(Fore.RED + "User not found")
-
-
 # Admin menu when admin is logged in
 def main_menu(role):
-    load_data()
 
     # Define menu options by role
     admin_options = {
-        "1": ("Dashboard", 1),
+        "1": ("Dashboard", dashboard),
         "2": ("Display all student records", display_all_students),
         "3": ("Add a new student record", add_student),
         "4": ("Remove student by ID", remove_student_by_id),
@@ -482,32 +445,203 @@ def manage_users_menu():
 # Loads the json file for persistent storage
 def load_data():
     global students, user
-    if os.path.exists("../students_data.json"):
+    if os.path.exists("students_data.json"):
         try:
-            with open("../students_data.json", "r") as f:
+            with open("students_data.json", "r") as f:
                 students = json.load(f)
                 print(Fore.GREEN + f"Successfully loaded {len(students)} student(s) from students_data.json.")
         except Exception as e:
             print(Fore.RED + f"Failed to load student data: {e}")
             logging.error(f"Error loading students data: {e}")
+    else:
+        print(Fore.RED + "Students data file not found. Failed to load data")
 
     if os.path.exists("user_data.json"):
         try:
             with open("user_data.json", "r") as f:
                 user = json.load(f)
-                print(Fore.GREEN + f"Successfully l {len(user)} user(s) from user_data.json.\n")
+                print(Fore.GREEN + f"Successfully loaded {len(user)} user(s) from user_data.json.\n")
         except Exception as e:
             print(Fore.RED + f"Failed to load user data: {e}")
             logging.error(f"Error loading user data: {e}")
+    else:
+        print(Fore.RED + "User data file not found. Failed to load data")
 
-# Function to display all users
-def display_all_users():
-    if not user:
-        print(Fore.RED + "No students found.")
+# Dashboard
+def dashboard():
+    # Calculate Total Number of Students
+    total_students = len(students)
+
+    # Calculate Number of Full-Time and Part-Time Students
+    full_time = 0
+    for student in students:
+        if student['Status'] == True:
+            full_time += 1
+
+    part_time = total_students - full_time
+
+    #Most Common Course Enrolled
+    all_courses = [course for student in students for course in student['Courses']]
+    course_counts = Counter(all_courses)
+    most_common_course = course_counts.most_common(1)
+    most_common_course_name = most_common_course[0][0] if most_common_course else "No Courses"
+
+    # Total Number of Pending Student Requests
+    pending_requests = 10  # Placeholder value
+
+    dashboard_data = [
+        ["Total Number of Students", total_students],
+        ["Number of Full-Time Students", full_time],
+        ["Number of Part-Time Students", part_time],
+        ["Most Common Course Enrolled", most_common_course_name],
+        ["Total Number of Pending Requests", pending_requests]
+    ]
+
+    # Print Dashboard
+    print(Fore.CYAN + "\nDashboard:" + Style.RESET_ALL)
+    print(tabulate(dashboard_data, headers=["Category", "Value"], tablefmt="fancy_grid"))
+
+
+
+
+# Bubble Sort - Ascending/Descending
+# Sorted by year of study
+def sort_year():
+    sort_year_order = input(Fore.CYAN + "Sort Year of Study in Ascending or Descending order (A/D): ")
+
+    if sort_year_order == "A":
+        n = len(students)
+        for i in range(n):
+            for j in range(0, n - i - 1):
+                if students[j]["Year"] > students[j + 1]["Year"]:  # > when ascending
+                    students[j], students[j + 1] = students[j + 1], students[j]
+
+        print("Sorted by Year Of Study in Ascending Order: \n" + tabulate(students, headers="keys",
+                                                                          tablefmt="fancy_grid"))
+    elif sort_year_order == "D":
+        n = len(students)
+        for i in range(n):
+            for j in range(0, n - i - 1):
+                if students[j]["Year"] < students[j + 1]["Year"]:  # < when descending
+                    students[j], students[j + 1] = students[j + 1], students[j]
+
+        print("Sorted by Year Of Study in Descending Order: \n" + tabulate(students, headers="keys",tablefmt="fancy_grid"))
+
+    else:
+        print(Fore.RED + "Invalid Sort Order!")
+
+# Selection Sort - Ascending/Descending
+# Sorted by num of registered courses
+def sort_course():
+    sort_course_order = input(
+        Fore.CYAN + "Sort Num Of Course in Ascending or Descending order (A/D): ")
+
+    n = len(students)
+
+    if sort_course_order == "A":
+        for i in range(n - 1):
+            min_idx = i  # use min when it's ascending
+            for j in range(i + 1, n):
+                if len(students[j]['Courses']) < len(
+                        students[min_idx]['Courses']):  # use len as comparing by no of | < if ascending
+                    min_idx = j
+            students[i], students[min_idx] = students[min_idx], students[i]
+        print("Sorted by Num of Registered Courses in Ascending Order: \n" + tabulate(students, headers="keys",tablefmt="fancy_grid"))
+
+    elif sort_course_order == "D":
+        for i in range(n - 1):
+            max_idx = i  # use max when it's descending
+            for j in range(i + 1, n):
+                if len(students[j]['Courses']) > len(
+                        students[max_idx]['Courses']):  # use len as comparing by no of | > if descending
+                    max_idx = j
+            students[i], students[max_idx] = students[max_idx], students[i]
+        print("Sorted by Num of Registered Courses in Descending Order: \n" + tabulate(students, headers="keys",tablefmt="fancy_grid"))
+
+
+    else:
+        print(Fore.RED + "Invalid Sort Order!")
+
+
+# Quick Sort on Year of Study with Secondary Sort (on Name)
+
+# def quick_sort():
+
+
+# Merge Sort by Num of Registered Course and Student ID
+
+# def merge_sort():
+
+
+# Search for student by id or name
+def search():
+    search_input = input("Enter Student ID or Student Name: ").strip()
+    for student in students:
+        if str(student["Student ID"]) == search_input or student["Student Name"].lower() == search_input.lower():
+            print(Fore.CYAN + "\nSearched Student Details:\n" + tabulate([student], headers="keys",tablefmt="fancy_grid" + Style.RESET_ALL))
+            break  # stop after first match
+    else:
+        logging.warning(f"Student with ID or name {search_input} not found.")
+        print(Fore.RED + "Student not found.")
+
+
+# Search for student ID in given range
+def student_range():
+    lower_limit = input("Enter lower limit for student ID: ")
+
+    if not (lower_limit.isdigit() and len(lower_limit) == 5):
+        print(Fore.RED + "Invalid lower limit. Enter a 5-digit Student ID.")
         return
 
-    print(Fore.CYAN + "\nDisplay Of All User Records:" + Style.RESET_ALL)
-    print(tabulate(user, headers="keys", tablefmt="fancy_grid"))
+    upper_limit = input("Enter upper limit for student ID: ")
+
+    if not (upper_limit.isdigit() and len(upper_limit) == 5):
+        print(Fore.RED + "Invalid upper limit. Enter a 5-digit Student ID." )
+        return
+
+    lower_limit = int(lower_limit)
+    upper_limit = int(upper_limit)
+
+    # Filter students
+    filtered_students = [
+        student for student in students
+        if lower_limit <= student["Student ID"] <= upper_limit
+    ]
+
+    print(Fore.CYAN + f"\nStudents with ID from {lower_limit} to {upper_limit}:" +Style.RESET_ALL)
+
+    if filtered_students:
+        # Bubble sort ascending by Student ID
+        n = len(filtered_students)
+        for i in range(n):
+            for j in range(0, n - i - 1):
+                if filtered_students[j]["Student ID"] > filtered_students[j + 1]["Student ID"]:
+                    filtered_students[j], filtered_students[j + 1] = filtered_students[j + 1], filtered_students[j]
+
+        print(tabulate(filtered_students, headers="keys", tablefmt="fancy_grid"))
+    else:
+        print(Fore.YELLOW + "No student IDs found in the given range." )
+
+
+# Filter students by year of study
+def filter_students():
+    try:
+        filter_year_input = int(input("Enter year of students to filter: "))
+    except ValueError:
+        print(Fore.RED + "Invalid year. Please enter a number." )
+        return
+
+    filtered_students = [
+        student for student in students
+        if student["Year"] == filter_year_input
+    ]
+
+    print(Fore.CYAN + f"\nAll Year {filter_year_input} Students:")
+
+    if filtered_students:
+        print(tabulate(filtered_students, headers="keys", tablefmt="fancy_grid"))
+    else:
+        print(Fore.YELLOW + "No students found in the selected year.")
 
 # Function to display all students and information
 def display_all_students():
@@ -655,40 +789,11 @@ def add_student():
     logging.info(f"New student added: ID: {student_id}, Name: {student_name}, Email: {email}, Course: {courses}, Year: {year}, Status: {status}")
     print(Fore.GREEN + f"Student {student_name} added successfully. \n")
 
-    out_file = open("../students_data.json", "w")
+    out_file = open("students_data.json", "w")
 
     json.dump(students, out_file, indent=6)
 
     out_file.close()
-
-
-# Function to add users
-def add_users():
-    username = input("Enter new username: ")
-
-    for u in user:
-        if u["Username"] == username:
-            print(Fore.RED + "User already exists.")
-            return
-
-    password = input("Enter password: ")
-    hashed_pw = hash_pw(password)
-
-    # All students create by admins are automatically active
-    user.append({
-        "Username": username,
-        "Password": hashed_pw,
-        "Active": True
-    })
-
-    print(Fore.GREEN + f"You have successfully added {username}")
-
-    out_file = open("user_data.json", "w")
-
-    json.dump(user, out_file, indent=6)
-
-    out_file.close()
-
 
 # Function to remove students by ID
 def remove_student_by_id():
@@ -718,7 +823,7 @@ def remove_student_by_id():
         except ValueError:
             print(Fore.RED + "Invalid input. Please enter a valid Student ID.")
 
-    out_file = open("../students_data.json", "w")
+    out_file = open("students_data.json", "w")
 
     json.dump(students, out_file, indent=6)
 
@@ -773,7 +878,7 @@ def enroll_student():
                     student["Courses"].append(course)
                     print(Fore.GREEN + f"Student {student['Student Name']}, ID: {student_id} has been successfully enrolled in {course}.")
                     logging.info(f"Student {student['Student Name']}, ID: {student_id} enrolled in {course}")
-                    with open("../students_data.json", "w") as out_file:
+                    with open("students_data.json", "w") as out_file:
                         json.dump(students, out_file, indent=6)
 
         except ValueError:
@@ -831,84 +936,87 @@ def remove_course():
                     student["Courses"].remove(course)
                     print(Fore.GREEN + f"Student {student['Student Name']}, ID: {student_id} has been successfully removed from {course}." )
                     logging.info(f"Student {student['Student Name']}, ID: {student_id} removed from {course}")
-                    with open("../students_data.json", "w") as out_file:
+                    with open("students_data.json", "w") as out_file:
                         json.dump(students, out_file, indent=6)
 
         except ValueError:
             print(Fore.RED + "Invalid Student ID. Please enter a valid student ID.")
 
 
-
-# Search for student by id or name
-def search():
-    search_input = input("Enter Student ID or Student Name: ").strip()
-    for student in students:
-        if str(student["Student ID"]) == search_input or student["Student Name"].lower() == search_input.lower():
-            print(Fore.CYAN + "\nSearched Student Details:\n" + tabulate([student], headers="keys",tablefmt="fancy_grid" + Style.RESET_ALL))
-            break  # stop after first match
-    else:
-        logging.warning(f"Student with ID or name {search_input} not found.")
-        print(Fore.RED + "Student not found.")
-
-
-# Search for student ID in given range
-def student_range():
-    lower_limit = input("Enter lower limit for student ID: ")
-
-    if not (lower_limit.isdigit() and len(lower_limit) == 5):
-        print(Fore.RED + "Invalid lower limit. Enter a 5-digit Student ID.")
+# Function to display all users
+def display_all_users():
+    if not user:
+        print(Fore.RED + "No students found.")
         return
 
-    upper_limit = input("Enter upper limit for student ID: ")
-
-    if not (upper_limit.isdigit() and len(upper_limit) == 5):
-        print(Fore.RED + "Invalid upper limit. Enter a 5-digit Student ID." )
-        return
-
-    lower_limit = int(lower_limit)
-    upper_limit = int(upper_limit)
-
-    # Filter students
-    filtered_students = [
-        student for student in students
-        if lower_limit <= student["Student ID"] <= upper_limit
-    ]
-
-    print(Fore.CYAN + f"\nStudents with ID from {lower_limit} to {upper_limit}:" +Style.RESET_ALL)
-
-    if filtered_students:
-        # Bubble sort ascending by Student ID
-        n = len(filtered_students)
-        for i in range(n):
-            for j in range(0, n - i - 1):
-                if filtered_students[j]["Student ID"] > filtered_students[j + 1]["Student ID"]:
-                    filtered_students[j], filtered_students[j + 1] = filtered_students[j + 1], filtered_students[j]
-
-        print(tabulate(filtered_students, headers="keys", tablefmt="fancy_grid"))
-    else:
-        print(Fore.YELLOW + "No student IDs found in the given range." )
+    print(Fore.CYAN + "\nDisplay Of All User Records:" + Style.RESET_ALL)
+    print(tabulate(user, headers="keys", tablefmt="fancy_grid"))
 
 
-# Filter students by year of study
-def filter_students():
-    try:
-        filter_year_input = int(input("Enter year of students to filter: "))
-    except ValueError:
-        print(Fore.RED + "Invalid year. Please enter a number." )
-        return
+# Change user's "Active" status
+def user_activation():
+    username = input("Enter username to unlock account for: ")
 
-    filtered_students = [
-        student for student in students
-        if student["Year"] == filter_year_input
-    ]
+    user_found = False
+    for u in user:
+        if u["Username"] == username:
+            user_found = True
+            activation_input = input("Activate [1] or Deactivate [2] account: ")
 
-    print(Fore.CYAN + f"\nAll Year {filter_year_input} Students:")
+            if activation_input not in ["1", "2"]:
+                print(Fore.RED + "Invalid option. Please enter 1 or 2.")
+                return
 
-    if filtered_students:
-        print(tabulate(filtered_students, headers="keys", tablefmt="fancy_grid"))
-    else:
-        print(Fore.YELLOW + "No students found in the selected year.")
+            if activation_input == "1":
+                if u["Active"]:
+                    print(Fore.RED + f"User {username} is already active.")
+                else:
+                    u["Active"] = True
+                    print(Fore.GREEN + f"User {username} has been activated.")
+                    logging.warning(f"User {username} has been activated successfully")
 
+            elif activation_input == "2":
+                if not u["Active"]:
+                    print(Fore.RED + f"User {username} is already deactivated.")
+                else:
+                    u["Active"] = False
+                    print(Fore.GREEN + f"User {username} has been deactivated.")
+                    logging.warning(f"User {username} has been deactivated successfully")
+
+            # Save the updated user list
+            with open("../users_data.json", "w") as out_file:
+                json.dump(user, out_file, indent=6)
+            break  # exit loop after update
+
+    if not user_found:
+        print(Fore.RED + "User not found")
+
+# Function to add users
+def add_users():
+    username = input("Enter new username: ")
+
+    for u in user:
+        if u["Username"] == username:
+            print(Fore.RED + "User already exists.")
+            return
+
+    password = input("Enter password: ")
+    hashed_pw = hash_pw(password)
+
+    # All students create by admins are automatically active
+    user.append({
+        "Username": username,
+        "Password": hashed_pw,
+        "Active": True
+    })
+
+    print(Fore.GREEN + f"You have successfully added {username}")
+
+    out_file = open("user_data.json", "w")
+
+    json.dump(user, out_file, indent=6)
+
+    out_file.close()
 
 
 # Generate Pie & Bar chart using matplotlib
@@ -965,6 +1073,73 @@ def generate_distribution_chart():
     except Exception as e:
         print(Fore.RED + f"Error generating department distribution chart: {e}")
         logging.error(f"Error generating department distribution chart: {e}")
+
+
+
+
+# import pandas - export to csv
+def export():
+    export_csv_filename = input(
+        Fore.CYAN + "Enter the name of the file you wish to save as (with .csv extension): ")
+
+    df = pd.DataFrame(students)
+
+    df.to_csv(f'{export_csv_filename}.csv', index=False)
+
+    print(Fore.GREEN + f"Data has been successfully exported to '{export_csv_filename}.csv'. \n")
+    logging.info(f"Data has been successfully exported to '{export_csv_filename}.csv'")
+
+
+# import pandas - import csv file
+def import_csv():
+    file_name = input(Fore.CYAN + "Enter the CSV file name (with .csv extension): ")
+
+    if not file_name:
+        print(Fore.RED + "File does not exist")
+        return
+
+    if not file_name.endswith('.csv'):
+        print(Fore.RED + "The file must have a .csv extension. Please try again.")
+        return
+
+    if not os.path.exists(file_name):
+        print(
+            Fore.RED + f"The file {file_name} does not exist. Please check the file name and try again." )
+        return
+
+    try:
+        # Read the CSV file into a pandas DataFrame
+        df = pd.read_csv(file_name)
+
+        # Validate if necessary columns exist in the CSV
+        required_columns = ['Student ID', 'Student Name', 'Email', 'Courses', 'Year', 'Status']
+        if not all(col in df.columns for col in required_columns):
+            print(
+                Fore.RED + f"CSV file must contain the following columns: {', '.join(required_columns)}")
+            return
+
+        # Convert 'Courses' from string to list
+        df['Courses'] = df['Courses'].apply(lambda x: ast.literal_eval(x) if isinstance(x, str) else x)
+
+        # Convert DataFrame to list of dictionaries
+        new_students = df.to_dict(orient='records')
+
+        # Add new students to the existing students list (without duplicates)
+        global students
+        for new_student in new_students:
+            # Check if the student ID already exists
+            if not any(student['Student ID'] == new_student['Student ID'] for student in students):
+                students.append(new_student)
+            else:
+                print(Fore.RED + f"Student ID {new_student['Student ID']} already exists. Skipping.")
+
+        print(Fore.GREEN + f"Student data from '{file_name}' has been successfully added to the current records.")
+        logging.info(f"Student data from '{file_name}' has been successfully added.")
+
+
+    except Exception as e:
+        print(Fore.RED + f"Error reading the CSV file: {e}")
+        logging.error(f"Error reading the CSV file: {e}")
 
 
 if __name__ == "__main__":
