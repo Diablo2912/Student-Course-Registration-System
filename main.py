@@ -15,6 +15,7 @@ from matplotlib.ticker import MaxNLocator
 from playsound import playsound
 from tabulate import tabulate
 from datetime import datetime
+import google.generativeai as genai
 
 # Language for gTTS
 language = "en"
@@ -26,6 +27,11 @@ logging.basicConfig(filename='student_registration.log',
 
 # Initialise colorama to auto-reset colors after each print statement
 init(autoreset=True)
+
+# Make folder to store Face ID if folder doesn't exist
+UPLOAD_FOLDER = '/faces'
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
 
 # Student Class
 class Student:
@@ -94,16 +100,6 @@ class StudentRequest:
 
     def __str__(self):
         return f"ID: {self.student_id}, Type: {self.request_type}, Priority: {self.priority_level}, Time: {self.timestamp}, Details: {self.request_details}"
-
-    # Convert list to dictionary for json dump
-    def to_dict(self):
-        return {
-            "student_id": self.student_id,
-            "request_type": self.request_type,
-            "priority_level": self.priority_level,
-            "request_details": self.request_details,
-            "timestamp": self.timestamp.strftime("%Y-%m-%d %H:%M:%S")
-        }
 
 # Initialize priority queue
 request_queue = []
@@ -190,6 +186,49 @@ user = [
     }
 ]
 
+# Loads the json file for persistent storage
+def load_data():
+    global students, user, request_queue
+    if os.path.exists("students_data.json"):
+        try:
+            with open("students_data.json", "r") as f:
+                students = json.load(f)
+                print(Fore.GREEN + f"Successfully loaded {len(students)} student(s) from students_data.json.")
+        except Exception as e:
+            print(Fore.RED + f"Failed to load student data: {e}")
+            logging.error(f"Error loading students data: {e}")
+    else:
+        print(Fore.RED + "Students data file not found. Failed to load data")
+
+    if os.path.exists("user_data.json"):
+        try:
+            with open("user_data.json", "r") as f:
+                user = json.load(f)
+                print(Fore.GREEN + f"Successfully loaded {len(user)} user(s) from user_data.json.")
+        except Exception as e:
+            print(Fore.RED + f"Failed to load user data: {e}")
+            logging.error(f"Error loading user data: {e}")
+    else:
+        print(Fore.RED + "User data file not found. Failed to load data")
+
+    if os.path.exists("student_requests.json"):
+        try:
+            with open("student_requests.json", "r") as f:
+                request_data = json.load(f)
+                request_queue.clear()
+                for item in request_data:
+                    request = StudentRequest(
+                        item["student_id"],
+                        item["request_type"],
+                        item["priority_level"],
+                        item["request_details"],
+                        datetime.strptime(item["timestamp"], "%Y-%m-%d %H:%M:%S")
+                    )
+                    request_queue.append(request)
+                print(Fore.GREEN + f"Successfully loaded {len(request_queue)} request(s) from student_requests.json.\n")
+        except Exception as e:
+            print(Fore.RED + f"Failed to load student request data: {e}\n")
+            logging.error(f"Error loading student request data: {e}")
 
 # Hash password using SHA-256
 # Use SHA-256 instead of hash() due to session management
@@ -407,15 +446,18 @@ def main_menu(role):
         "16": ("Generate Student Distribution by Year chart", generate_distribution_chart),
         "17": ("Manage Users", manage_users_menu),
         "18": ("Manage Student Request", manage_request_menu),
-        "19": ("Logout", login),
+        "19": ("Chatbot", chatbot_loop),
+        "20": ("Logout", login),
         "0": ("Exit the program", lambda: exit())
     }
 
     user_options = {
         "1": ("Display all student records", display_all_students),
         "2": ("Search for a student by ID or Name", search),
-        "3": ("Reset Password", reset_password),
-        "4": ("Logout", login),
+        "3": ("Add Student Request", add_student_request),
+        "4": ("Chatbot", chatbot_loop),
+        "5": ("Reset Password", reset_password),
+        "6": ("Logout", login),
         "0": ("Exit the program", lambda: exit())
     }
 
@@ -444,9 +486,10 @@ def manage_users_menu():
         Fore.MAGENTA + "--- Student Course Registration System --- \n"  +
         Fore.BLUE + "--- Manage Users --- \n" + Style.RESET_ALL +
         "1: Return to main menu \n"
-        "2: Display all user records \n"
-        "3: Add users \n"
-        "4: Activate / Deactivate User \n"
+        "2: Manage Student Request \n"
+        "3: Display all user records \n"
+        "5: Add users \n"
+        "5: Activate / Deactivate User \n"
         "0: Exit the program"
     )
 
@@ -454,10 +497,12 @@ def manage_users_menu():
     if choice == "1":
         main_menu(role="admin")
     elif choice == "2":
-        display_all_users()
+        manage_request_menu()
     elif choice == "3":
-        add_users()
+        display_all_users()
     elif choice == "4":
+        add_users()
+    elif choice == "5":
         user_activation()
     elif choice == "0":
         print(Fore.RED + "Exiting the programme...")
@@ -495,41 +540,6 @@ def manage_request_menu():
         print(Fore.RED + "Invalid Option, Please enter an input from 0-4 \n")
         logging.warning(f"Invalid menu option entered")
 
-# Loads the json file for persistent storage
-def load_data():
-    global students, user, request_queue
-    if os.path.exists("students_data.json"):
-        try:
-            with open("students_data.json", "r") as f:
-                students = json.load(f)
-                print(Fore.GREEN + f"Successfully loaded {len(students)} student(s) from students_data.json.")
-        except Exception as e:
-            print(Fore.RED + f"Failed to load student data: {e}")
-            logging.error(f"Error loading students data: {e}")
-    else:
-        print(Fore.RED + "Students data file not found. Failed to load data")
-
-    if os.path.exists("user_data.json"):
-        try:
-            with open("user_data.json", "r") as f:
-                user = json.load(f)
-                print(Fore.GREEN + f"Successfully loaded {len(user)} user(s) from user_data.json.")
-        except Exception as e:
-            print(Fore.RED + f"Failed to load user data: {e}")
-            logging.error(f"Error loading user data: {e}")
-    else:
-        print(Fore.RED + "User data file not found. Failed to load data")
-
-    if os.path.exists("student_requests.json"):
-        try:
-            with open("student_requests.json", "r") as f:
-                students = json.load(f)
-                print(Fore.GREEN + f"Successfully loaded {len(request_queue)} requests(s) from student_requests.json.\n")
-        except Exception as e:
-            print(Fore.RED + f"Failed to load student request data: {e}\n")
-            logging.error(f"Error loading students request data: {e}")
-    else:
-        print(Fore.RED + "Students data file not found. Failed to load data\n")
 
 # Dashboard
 def dashboard():
@@ -561,7 +571,6 @@ def dashboard():
     print(Fore.CYAN + "\nDashboard:" + Style.RESET_ALL)
     print(tabulate(dashboard_data, headers=["Category", "Value"], tablefmt="fancy_grid"))
 
-
 def display_student_requests():
     if not request_queue:
         print(Fore.GREEN + "No pending requests.")
@@ -583,6 +592,42 @@ def display_student_requests():
     print(f"Total Student Requests: {len(request_queue)}")
     headers = ["Student ID", "Request Type", "Priority", "Timestamp", "Details"]
     print(tabulate(table, headers=headers, tablefmt="fancy_grid"))
+
+    # Filtering logic
+    filter_col = input(Fore.CYAN + 'Select a column to filter by: ').strip()
+
+    if filter_col.lower() == 'request type':
+        filter_value = input("Enter the Request Type to filter (e.g., Appeal, Drop Course): ").strip().lower()
+        filtered = [req for req in sorted_requests if req.request_type.lower() == filter_value]
+
+    elif filter_col.lower() == 'priority level':
+        try:
+            level = int(input("Enter Priority Level to Filter [1 = High, 2 = Medium, 3 = Low]: "))
+            if level not in [1, 2, 3]:
+                raise ValueError
+            filtered = [req for req in sorted_requests if req.priority_level == level]
+        except ValueError:
+            print(Fore.RED + "Invalid priority level.")
+            return
+    else:
+        print(Fore.YELLOW + "Unknown filter option. Skipping filter.")
+        return
+
+    # Display filtered result
+    if filtered:
+        print(Fore.GREEN + f"\nFiltered Results ({len(filtered)} record(s)):")
+        filtered_table = [
+            [
+                req.student_id,
+                req.request_type,
+                req.priority_level,
+                req.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+                req.request_details
+            ] for req in filtered
+        ]
+        print(tabulate(filtered_table, headers=headers, tablefmt="fancy_grid"))
+    else:
+        print(Fore.RED + "No matching results found.")
 
 def add_student_request():
     student_id = input("Enter Student ID: ").strip()
@@ -1363,6 +1408,63 @@ def import_csv():
         print(Fore.RED + f"Error reading the CSV file: {e}")
         logging.error(f"Error reading the CSV file: {e}")
 
+
+genai.configure(api_key="AIzaSyCAAPAaUHZj3frMPcaV54_v2PJ2jNyibuQ")
+model = genai.GenerativeModel("gemini-1.5-flash")
+
+
+def chatbot_response(message):
+    message = message.lower().strip()
+
+    keyword_mapping = {
+        "student": "student", "students": "student", "record": "student", "details": "student",
+        "course": "course", "courses": "course", "enroll": "course", "register": "course",
+        "remove": "course", "drop": "course",
+        "request": "request", "appeal": "request", "priority": "request", "form": "request",
+        "search": "search", "find": "search", "sort": "search", "filter": "search",
+        "user": "user", "login": "user", "sign": "user", "reset": "user",
+        "password": "user", "account": "user"
+    }
+
+    if any(word in message for word in ["hello", "hi", "hey"]):
+        return "Hey there! Welcome to the Student Course Advisor. How can I help you today?"
+    elif "thank you" in message or "thanks" in message:
+        return "You're welcome! Let me know if you need help with courses or student requests."
+    elif "who are you" in message or "what is your name" in message:
+        return "I'm your friendly course advisory assistant!"
+
+    matched_categories = set()
+    for keyword, category in keyword_mapping.items():
+        if keyword in message:
+            matched_categories.add(category)
+
+    if matched_categories:
+        response_lines = []
+        for cat in matched_categories:
+            if cat == "student":
+                response_lines.append("You can view and manage student records using the student dashboard.")
+            elif cat == "course":
+                response_lines.append("To register or remove courses, go to the Course Registration menu.")
+            elif cat == "request":
+                response_lines.append("You can submit or process student requests in the Request Queue section.")
+            elif cat == "search":
+                response_lines.append("Use the search and sort options available in the student/course views.")
+            elif cat == "user":
+                response_lines.append("Account-related actions like login or password reset are in the User Settings.")
+        return "\n".join(response_lines)
+
+    return (Fore.YELLOW + "Sorry, I didn't understand that. I can help with course registration, student records, requests, or user accounts."+ Style.RESET_ALL)
+
+# Loop to keep chatbot running
+def chatbot_loop():
+    while True:
+        message = input(Fore.CYAN + 'Ask Student Course Advisor Anything [Type "exit" to quit]: ' + Style.RESET_ALL)
+        if message.lower().strip() == "exit":
+            print(Fore.GREEN + "Goodbye!" + Style.RESET_ALL)
+            break
+
+        response = chatbot_response(message)
+        print(Fore.GREEN + response + Style.RESET_ALL)
 
 if __name__ == "__main__":
     login()
