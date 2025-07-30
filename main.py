@@ -1,22 +1,20 @@
 import ast
-import numpy as np
-import logging
-import re
-
-import pandas as pd
-from colorama import Fore, Style, init
-from tabulate import tabulate
-import matplotlib.pyplot as plt
-from matplotlib.ticker import MaxNLocator
-import os
-from gtts import gTTS
-from playsound import playsound
 import hashlib
 import json
-import random
-import smtplib
+import logging
+import os
+import re
 from collections import Counter
-
+import heapq
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from colorama import Fore, Style, init
+from gtts import gTTS
+from matplotlib.ticker import MaxNLocator
+from playsound import playsound
+from tabulate import tabulate
+from datetime import datetime
 
 # Language for gTTS
 language = "en"
@@ -77,6 +75,38 @@ class Student:
         print(Fore.CYAN + f"Year: {self.year}" + Style.RESET_ALL)
         print(Fore.CYAN + f"Status: {self.status}" + Style.RESET_ALL)
         print(Fore.CYAN + f"Enrolled Courses: {', '.join(self.course)}" + Style.RESET_ALL)
+
+# StudentRequest Class
+
+class StudentRequest:
+    def __init__(self, student_id, request_type, priority_level, request_details, timestamp):
+        self.student_id = student_id
+        self.request_type = request_type
+        self.priority_level = priority_level
+        self.request_details = request_details
+        self.timestamp = timestamp  # datetime object
+
+    def __lt__(self, other):
+        # Lower priority_level = higher priority; if equal, compare timestamp
+        if self.priority_level == other.priority_level:
+            return self.timestamp < other.timestamp
+        return self.priority_level < other.priority_level
+
+    def __str__(self):
+        return f"ID: {self.student_id}, Type: {self.request_type}, Priority: {self.priority_level}, Time: {self.timestamp}, Details: {self.request_details}"
+
+    # Convert list to dictionary for json dump
+    def to_dict(self):
+        return {
+            "student_id": self.student_id,
+            "request_type": self.request_type,
+            "priority_level": self.priority_level,
+            "request_details": self.request_details,
+            "timestamp": self.timestamp.strftime("%Y-%m-%d %H:%M:%S")
+        }
+
+# Initialize priority queue
+request_queue = []
 
 # Empty student list to start from scratch
 # students = [ ]
@@ -180,12 +210,6 @@ def play_and_cleanup_audio(filename):
                 logging.info(f"Audio file deleted: {filename}")
         except Exception as e:
             logging.warning(f"Failed to delete audio file: {e}")
-
-def two_factor_code():
-    x= random.randint(0, 1000000)
-    return x
-
-# def mail():
 
 # Login function
 def login():
@@ -372,8 +396,8 @@ def main_menu(role):
         "5": ("Enroll student for a new course", enroll_student),
         "6": ("Remove student from course", remove_course),
         "7": ("Sort students by Year of Study - Bubble Sort", sort_year),
-        "8": ("Quick Sort on Year of Study with Secondary Sort (on Name)", 1),
-        "9": ("Merge Sort by Num of Registered Course and Student ID", 1),
+        "8": ("Quick Sort on Year of Study with Secondary Sort (on Name)", quick_sort),
+        "9": ("Merge Sort by Num of Registered Course and Student ID", merge_sort_course_and_id),
         "10": ("Sort students by Num of Registered Course - Selection Sort", sort_course),
         "11": ("Search for a student by ID or Name", search),
         "12": ("Search Student ID by range", student_range),
@@ -382,7 +406,8 @@ def main_menu(role):
         "15": ("Export student data to CSV", export),
         "16": ("Generate Student Distribution by Year chart", generate_distribution_chart),
         "17": ("Manage Users", manage_users_menu),
-        "18": ("Logout", login),
+        "18": ("Manage Student Request", manage_request_menu),
+        "19": ("Logout", login),
         "0": ("Exit the program", lambda: exit())
     }
 
@@ -442,9 +467,37 @@ def manage_users_menu():
         print(Fore.RED + "Invalid Option, Please enter an input from 0-4 \n")
         logging.warning(f"Invalid menu option entered")
 
+def manage_request_menu():
+    print(
+        Fore.MAGENTA + "--- Student Course Registration System --- \n"  +
+        Fore.BLUE + "--- Manage Student Request --- \n" + Style.RESET_ALL +
+        "1: Return to main menu \n"
+        "2: Display All Student Request \n"
+        "3: Add Student Request \n"
+        "4: Process Next Student Requests \n"
+        "0: Exit the program"
+    )
+
+    choice = input(Fore.CYAN + "Enter your choice: " +Style.RESET_ALL)
+    if choice == "1":
+        main_menu(role="admin")
+    elif choice == "2":
+        display_student_requests()
+    elif choice == "3":
+        add_student_request()
+    elif choice == "4":
+        process_student_request()
+    elif choice == "0":
+        print(Fore.RED + "Exiting the programme...")
+        logging.info(f"Admin has exited the programme")
+        exit()
+    else:
+        print(Fore.RED + "Invalid Option, Please enter an input from 0-4 \n")
+        logging.warning(f"Invalid menu option entered")
+
 # Loads the json file for persistent storage
 def load_data():
-    global students, user
+    global students, user, request_queue
     if os.path.exists("students_data.json"):
         try:
             with open("students_data.json", "r") as f:
@@ -460,12 +513,23 @@ def load_data():
         try:
             with open("user_data.json", "r") as f:
                 user = json.load(f)
-                print(Fore.GREEN + f"Successfully loaded {len(user)} user(s) from user_data.json.\n")
+                print(Fore.GREEN + f"Successfully loaded {len(user)} user(s) from user_data.json.")
         except Exception as e:
             print(Fore.RED + f"Failed to load user data: {e}")
             logging.error(f"Error loading user data: {e}")
     else:
         print(Fore.RED + "User data file not found. Failed to load data")
+
+    if os.path.exists("student_requests.json"):
+        try:
+            with open("student_requests.json", "r") as f:
+                students = json.load(f)
+                print(Fore.GREEN + f"Successfully loaded {len(request_queue)} requests(s) from student_requests.json.\n")
+        except Exception as e:
+            print(Fore.RED + f"Failed to load student request data: {e}\n")
+            logging.error(f"Error loading students request data: {e}")
+    else:
+        print(Fore.RED + "Students data file not found. Failed to load data\n")
 
 # Dashboard
 def dashboard():
@@ -486,22 +550,90 @@ def dashboard():
     most_common_course = course_counts.most_common(1)
     most_common_course_name = most_common_course[0][0] if most_common_course else "No Courses"
 
-    # Total Number of Pending Student Requests
-    pending_requests = 10  # Placeholder value
-
     dashboard_data = [
         ["Total Number of Students", total_students],
         ["Number of Full-Time Students", full_time],
         ["Number of Part-Time Students", part_time],
         ["Most Common Course Enrolled", most_common_course_name],
-        ["Total Number of Pending Requests", pending_requests]
+        ["Total Number of Pending Requests", len(request_queue)]
     ]
 
-    # Print Dashboard
     print(Fore.CYAN + "\nDashboard:" + Style.RESET_ALL)
     print(tabulate(dashboard_data, headers=["Category", "Value"], tablefmt="fancy_grid"))
 
 
+def display_student_requests():
+    if not request_queue:
+        print(Fore.GREEN + "No pending requests.")
+        print(f"Total Student Requests: 0 \n")
+        return
+
+    # Sort by priority and timestamp
+    sorted_requests = sorted(request_queue)
+
+    table = []
+    for req in sorted_requests:
+        table.append([
+            req.student_id,
+            req.request_type,
+            req.priority_level,
+            req.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+            req.request_details
+        ])
+    print(f"Total Student Requests: {len(request_queue)}")
+    headers = ["Student ID", "Request Type", "Priority", "Timestamp", "Details"]
+    print(tabulate(table, headers=headers, tablefmt="fancy_grid"))
+
+def add_student_request():
+    student_id = input("Enter Student ID: ").strip()
+
+    # Validate Student ID (Sequential Search)
+    exists = any(str(s["Student ID"]) == student_id for s in students)
+    if not exists:
+        print(Fore.RED + "Student not found.")
+        return
+
+    # Check for duplicate requests
+    for req in request_queue:
+        if req.student_id == student_id:
+            confirm = input("A student request already exists. Add another request? [Y/N]: ").upper()
+            if confirm != 'Y':
+                print("Request cancelled.")
+                return
+            break
+
+    # Collect request details
+    request_type = input("Enter Request Type (e.g., Appeal, Drop Course): ")
+    request_details = input("Enter Request Details: ")
+
+    while True:
+        try:
+            priority_level = int(input("Enter Priority Level [1 = High, 2 = Medium, 3 = Low]: "))
+            if priority_level not in [1, 2, 3]:
+                raise ValueError
+            break
+        except ValueError:
+            print("Please enter a valid priority (1, 2, or 3).")
+
+    timestamp = datetime.now()
+
+    # Create request and add to priority queue
+    new_request = StudentRequest(student_id, request_type, priority_level, request_details, timestamp)
+    heapq.heappush(request_queue, new_request)
+    print(Fore.GREEN + "Request successfully added.")
+
+    with open("student_requests.json", "w") as out_file:
+        json.dump([req.to_dict() for req in request_queue], out_file, indent=6)
+
+def process_student_request():
+    if request_queue:
+        next_request = heapq.heappop(request_queue)
+        print(Fore.YELLOW + "Processing next request:")
+        print(next_request)
+        print(f"Total Student Requests: {len(request_queue)}\n")
+        logging.info(f"Student request has been processed")
+    else:
+        print(Fore.RED + "No requests to process.\n")
 
 
 # Bubble Sort - Ascending/Descending
@@ -564,13 +696,103 @@ def sort_course():
 
 
 # Quick Sort on Year of Study with Secondary Sort (on Name)
+def quick_sort():
+    def recursive_sort(left, right):
+        if left >= right:
+            return
 
-# def quick_sort():
+        pivot_index = left
+        pivot = students[pivot_index]
+        i = left + 1
+        j = right
 
+        while i <= j:
+            while i <= right and (students[i]["Year"], students[i]["Student Name"]) < (
+            pivot["Year"], pivot["Student Name"]):
+                i += 1
+            while j > left and (students[j]["Year"], students[j]["Student Name"]) >= (
+            pivot["Year"], pivot["Student Name"]):
+                j -= 1
+            if i < j:
+                students[i], students[j] = students[j], students[i]
+
+        if (students[j]["Year"], students[j]["Student Name"]) < (pivot["Year"], pivot["Student Name"]):
+            students[left], students[j] = students[j], students[left]
+            pivot_index = j
+
+        recursive_sort(left, pivot_index - 1)
+        recursive_sort(pivot_index + 1, right)
+
+    recursive_sort(0, len(students) - 1)
+
+
+    print(Fore.CYAN + "\nSorted by Year of Study with Secondary Sort on Name: " + Style.RESET_ALL)
+    print(tabulate(students, headers="keys", tablefmt="fancy_grid"))
 
 # Merge Sort by Num of Registered Course and Student ID
+def merge_sort_course_and_id():
+    try:
+        # Get filter input
+        filter_year = input(Fore.CYAN + "Enter Year of Study to filter and sort [1/2/3]: ")
+        if filter_year not in ["1", "2", "3"]:
+            print(Fore.RED + "Invalid year. Please enter 1, 2 or 3.")
+            return
+        filter_year = int(filter_year)
 
-# def merge_sort():
+        # Filter students of selected year
+        filtered = [s for s in students if s["Year"] == filter_year]
+
+        if not filtered:
+            print(Fore.YELLOW + f"No students found in Year {filter_year}.")
+            return
+
+        # Merge Sort implementation
+        def merge_sort(lst):
+            if len(lst) <= 1:
+                return lst
+
+            mid = len(lst) // 2
+            left = merge_sort(lst[:mid])
+            right = merge_sort(lst[mid:])
+            return merge(left, right)
+
+        def merge(left, right):
+            result = []
+            i = j = 0
+
+            while i < len(left) and j < len(right):
+                # Primary sort: Number of Courses
+                # Secondary sort: Student ID
+                if len(left[i]["Courses"]) < len(right[j]["Courses"]):
+                    result.append(left[i])
+                    i += 1
+                elif len(left[i]["Courses"]) > len(right[j]["Courses"]):
+                    result.append(right[j])
+                    j += 1
+                else:  # Same number of courses
+                    if left[i]["Student ID"] < right[j]["Student ID"]:
+                        result.append(left[i])
+                        i += 1
+                    else:
+                        result.append(right[j])
+                        j += 1
+
+            result.extend(left[i:])
+            result.extend(right[j:])
+            return result
+
+        # Sort the filtered list
+        sorted_filtered = merge_sort(filtered)
+
+        # Format status
+        for s in sorted_filtered:
+            s["Status"] = "Full-Time" if s["Status"] else "Part-Time"
+
+        print(Fore.CYAN + f"\nStudents from Year {filter_year} sorted by Num of Courses and Student ID: " + Style.RESET_ALL)
+        print(tabulate(sorted_filtered, headers="keys", tablefmt="fancy_grid"))
+
+    except Exception as e:
+        print(Fore.RED + f"An error occurred: {e}")
 
 
 # Search for student by id or name
