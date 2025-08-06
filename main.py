@@ -3,6 +3,7 @@ import hashlib
 import json
 import logging
 import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # Suppresses INFO and WARNING logs for FaceID
 import re
 from collections import Counter
 import heapq
@@ -16,6 +17,9 @@ from playsound import playsound
 from tabulate import tabulate
 from datetime import datetime
 import google.generativeai as genai
+from deepface import DeepFace
+import cv2
+
 
 # Language for gTTS
 language = "en"
@@ -28,7 +32,7 @@ logging.basicConfig(filename='student_registration.log',
 # Initialise colorama to auto-reset colors after each print statement
 init(autoreset=True)
 
-# Make folder to store Face ID if folder doesn't exist
+# Make folder to store faces ID if folder doesn't exist
 UPLOAD_FOLDER = '/faces'
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
@@ -42,6 +46,7 @@ class Student:
         self.course = course
         self.year = year
         self.status = status
+        self.history = CourseHistoryList()
 
     # email validator
     @staticmethod
@@ -54,25 +59,27 @@ class Student:
         for course in courses:
             course = course.strip().upper()
             if not re.match(r'^[A-Z]{2}\d{3}$', course):
-                print(Fore.RED + f"Invalid course code format: {course}" + Style.RESET_ALL)
+                print(Fore.RED + f"Invalid course code format: {course}")
                 continue
             if course in self.course:
-                print(Fore.RED + f"Already enrolled in {course}" + Style.RESET_ALL)
+                print(Fore.RED + f"Already enrolled in {course}")
             else:
                 self.course.append(course)
-                print(Fore.GREEN + f"Enrolled in {course}" + Style.RESET_ALL)
+                self.history.add_record(course, "enrolled")  # ✅ log to history
+                print(Fore.GREEN + f"Enrolled in {course}")
 
     def remove_courses(self, courses):
         for course in courses:
             course = course.strip().upper()
             if not re.match(r'^[A-Z]{2}\d{3}$', course):
-                print(Fore.RED + f"Invalid course code format: {course}" + Style.RESET_ALL)
+                print(Fore.RED + f"Invalid course code format: {course}")
                 continue
             if course not in self.course:
-                print(Fore.RED + f"Not enrolled in {course}" + Style.RESET_ALL)
+                print(Fore.RED + f"Not enrolled in {course}")
             else:
                 self.course.remove(course)
-                print(Fore.GREEN + f"Removed from {course}" + Style.RESET_ALL)
+                self.history.add_record(course, "removed")  # ✅ log to history
+                print(Fore.GREEN + f"Removed from {course}")
 
     def display_student_details(self):
         print(Fore.CYAN + f"\nStudent ID: {self.student_id}" + Style.RESET_ALL)
@@ -103,6 +110,38 @@ class StudentRequest:
 
 # Initialize priority queue
 request_queue = []
+
+undo_stack = []
+
+redo_stack = []
+
+# Linked list node to store course action history
+class CourseHistoryNode:
+    def __init__(self, course_code, action, timestamp):
+        self.course_code = course_code
+        self.action = action  # "enrolled" or "removed"
+        self.timestamp = timestamp
+        self.next = None
+
+# Linked list class to track registration history
+class CourseHistoryList:
+    def __init__(self):
+        self.head = None
+
+    def add_record(self, course_code, action):
+        new_node = CourseHistoryNode(course_code, action, datetime.now())
+        new_node.next = self.head
+        self.head = new_node
+
+    def display_history(self):
+        if not self.head:
+            print(Fore.YELLOW + "No course history available.")
+            return
+        print(Fore.CYAN + "\nCourse Registration History:")
+        current = self.head
+        while current:
+            print(f"{current.timestamp.strftime('%Y-%m-%d %H:%M:%S')} - {current.action.upper()} {current.course_code}")
+            current = current.next
 
 # Empty student list to start from scratch
 # students = [ ]
@@ -189,9 +228,9 @@ user = [
 # Loads the json file for persistent storage
 def load_data():
     global students, user, request_queue
-    if os.path.exists("students_data.json"):
+    if os.path.exists("data/students_data.json"):
         try:
-            with open("students_data.json", "r") as f:
+            with open("data/students_data.json", "r") as f:
                 students = json.load(f)
                 print(Fore.GREEN + f"Successfully loaded {len(students)} student(s) from students_data.json.")
         except Exception as e:
@@ -200,9 +239,9 @@ def load_data():
     else:
         print(Fore.RED + "Students data file not found. Failed to load data")
 
-    if os.path.exists("user_data.json"):
+    if os.path.exists("data/user_data.json"):
         try:
-            with open("user_data.json", "r") as f:
+            with open("data/user_data.json", "r") as f:
                 user = json.load(f)
                 print(Fore.GREEN + f"Successfully loaded {len(user)} user(s) from user_data.json.")
         except Exception as e:
@@ -211,9 +250,9 @@ def load_data():
     else:
         print(Fore.RED + "User data file not found. Failed to load data")
 
-    if os.path.exists("student_requests.json"):
+    if os.path.exists("data/student_requests.json"):
         try:
-            with open("student_requests.json", "r") as f:
+            with open("data/student_requests.json", "r") as f:
                 request_data = json.load(f)
                 request_queue.clear()
                 for item in request_data:
@@ -250,6 +289,85 @@ def play_and_cleanup_audio(filename):
         except Exception as e:
             logging.warning(f"Failed to delete audio file: {e}")
 
+def face_id_login_for_username(username):
+    face_folder = "faces"
+    if not os.path.exists(face_folder):
+        print(Fore.RED + "faces folder not found.")
+        return False
+
+    face_path = os.path.join(face_folder, f"{username}.jpg")
+    if not os.path.exists(face_path):
+        print(Fore.RED + f"No registered face image found for '{username}'. Please register your face.")
+        return False
+
+    # Capture webcam image
+    cam = cv2.VideoCapture(0)
+    print("📸 Look into the camera. Press 'q' to capture your face.\n")
+
+    while True:
+        ret, frame = cam.read()
+        cv2.imshow("faces ID Login", frame)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
+    cam.release()
+    cv2.destroyAllWindows()
+
+    temp_image_path = os.path.join(face_folder, f"{username}_temp.jpg")
+    cv2.imwrite(temp_image_path, frame)
+
+    try:
+        result = DeepFace.verify(
+            img1_path=face_path,
+            img2_path=temp_image_path,
+            model_name="Facenet",  # You can use: VGG-faces, Facenet, ArcFace, Dlib, SFace, etc.
+            detector_backend="opencv",  # You can also use retinaface, mtcnn, mediapipe
+            enforce_detection=False
+        )
+        os.remove(temp_image_path)
+
+        if result["verified"]:
+            print(Fore.GREEN + f"✅ face id successful for {username}!")
+            return True
+        else:
+            print(Fore.RED + "❌ faces does not match.")
+            return False
+
+    except Exception as e:
+        print(Fore.RED + f"faces verification failed: {str(e)}")
+        return False
+
+def register_face(username):
+    face_folder = "faces"
+
+    if not os.path.exists(face_folder):
+        os.makedirs(face_folder)
+
+    face_path = os.path.join(face_folder, f"{username}.jpg")
+
+    # If face already exists, confirm overwrite
+    if os.path.exists(face_path):
+        confirm = input(Fore.YELLOW + f"A face is already registered for {username}. Overwrite? (Y/N): ").strip().upper()
+        if confirm != "Y":
+            print(Fore.CYAN + "Face registration cancelled.")
+            return
+
+    cam = cv2.VideoCapture(0)
+    print(Fore.CYAN + f"\n📸 {username}, please look into the camera. Press 'q' to capture your face.")
+
+    while True:
+        ret, frame = cam.read()
+        cv2.imshow("Register Face", frame)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
+    cam.release()
+    cv2.destroyAllWindows()
+
+    # Save face image
+    cv2.imwrite(face_path, frame)
+    print(Fore.GREEN + f"✅ Face image saved as '{face_path}'")
+
 # Login function
 def login():
     load_data()
@@ -257,122 +375,136 @@ def login():
     # Infinite username checking loop
     while True:
         try:
-            username = input(Fore.CYAN + "Enter Username (Type 'E' to quit, 'Reset PW' to reset password): " )
+            username = input(Fore.CYAN + "Enter Username (Type 'E' to quit, 'Reset PW' to reset password): ")
 
             if username == 'E':
-                print(Fore.YELLOW + "Exiting login process." )
-                return  # Exit the login function
+                print(Fore.YELLOW + "Exiting login process.")
+                return
 
             elif username == "Reset PW":
                 reset_password()
-                return  # Exit after password reset
+                return
 
-            while not username:  # Check if the username is empty
+            while not username:
                 print(Fore.RED + "Invalid Username. Please try again")
                 username = input(Fore.CYAN + "Enter Username (Type 'E' to quit, 'Reset PW' to reset password): ")
 
-            # Admin Login
-            # Check if the username exists in admin
+            # ---------- ADMIN LOGIN ----------
             if username in admin:
-                # If found in admin, ask for the password
+                print(Fore.YELLOW + f"Welcome {username} (Admin)")
+                method = input("Login using [1] Password or [2] face ID: ").strip()
+
+                if method == "2":
+                    if face_id_login_for_username(username):
+                        print(Fore.GREEN + f"{username} has logged in successfully using faces ID as an Admin!\n")
+                        tts = gTTS(text=f'Hello {username}', lang=language, slow=False)
+                        tts.save(f'{username}.mp3')
+                        play_and_cleanup_audio(f'{username}.mp3')
+                        logging.info(f"{username} logged in with faces ID (admin).")
+                        main_menu(role="admin", current_user=username)
+                        return
+                    else:
+                        print(Fore.RED + "faces ID login failed.")
+                        return
+
+                # Fallback to password login
                 password_attempts = 0
                 max_attempts = 2
-
                 while password_attempts < max_attempts:
-                    password = input(
-                        Fore.CYAN + "Enter Password (Enter 'Reset PW' to reset password): ")
-
+                    password = input(Fore.CYAN + "Enter Password (Enter 'Reset PW' to reset password): ")
                     if password == "Reset PW":
                         reset_password()
-                        return  # Exit after password reset
+                        return
 
                     hashed_pw_input = hash_pw(password)
 
                     if admin[username] == hashed_pw_input:
                         print(Fore.GREEN + f"{username} has logged in successfully as an Admin!\n")
-                        # gTTS code - next 3 lines
                         tts = gTTS(text=f'Hello {username}', lang=language, slow=False)
                         tts.save(f'{username}.mp3')
                         play_and_cleanup_audio(f'{username}.mp3')
                         logging.info(f"{username} has logged in successfully as an Admin!")
-                        main_menu(role="admin")
-                        return  # Exit after successful login (exit from login function)
-
-
+                        main_menu(role="admin", current_user=username)
+                        return
                     else:
                         print(Fore.RED + "Wrong Password. Please try again.")
                         password_attempts += 1
 
-                # If the password attempts are exceeded
                 print(Fore.RED + f"Too many failed password attempts for admin {username}.")
                 logging.warning(f"Too many failed password attempts for admin: {username}")
-                login()  # Exit after failed password attempts
+                login()
 
-            # User Login
-            # Check if the username exists in the user list
+            # ---------- USER LOGIN ----------
             user_found = False
             locked_user = False
             for u in user:
                 if u["Username"] == username:
                     user_found = True
-                    if not u["Active"]:  # Check if the account is locked
+                    if not u["Active"]:
                         locked_user = True
-                        print(
-                            Fore.RED + f"Account for '{username}' is locked. Please contact the admin.")
-                    break  # Exit loop once the user is found (either locked or active)
+                        print(Fore.RED + f"Account for '{username}' is locked. Please contact the admin.")
+                    break
 
-            # If user is not found, inform the user
             if not user_found:
                 print(Fore.RED + "User does not exist. Please check your username and try again.")
                 continue
 
-
-            # If the user is found but locked, prevent further login attempts
             elif locked_user:
-                login()  # Exit if locked
+                login()
 
-            # If the user is found and active, ask for the password
+            print(Fore.YELLOW + f"Welcome {username} (User)")
+            method = input("Login using [1] Password or [2] face ID: ").strip()
+
+            if method == "2":
+                if face_id_login_for_username(username):
+                    print(Fore.GREEN + f"{username} has logged in successfully using faces ID as a User!")
+                    tts = gTTS(text=f'Hello {username}', lang=language, slow=False)
+                    tts.save(f'{username}.mp3')
+                    play_and_cleanup_audio(f'{username}.mp3')
+                    logging.info(f"{username} logged in with faces ID (user).")
+                    main_menu(role="user", current_user=username)
+                    return
+                else:
+                    print(Fore.RED + "faces ID login failed.")
+                    return
+
+            # Fallback to password login
             password_attempts = 0
             max_attempts = 2
-
             while password_attempts < max_attempts:
                 password = input(Fore.CYAN + "Enter Password (Enter 'Reset PW' to reset password): ")
                 if password == "Reset PW":
                     reset_password()
-                    return  # Exit after password reset
+                    return
 
                 hashed_pw_input = hash_pw(password)
 
-                # Check if the username and password match for a regular user
                 for user_entry in user:
                     if user_entry["Username"] == username and user_entry["Active"]:
                         if user_entry["Password"] == hashed_pw_input:
                             print(Fore.GREEN + f"{username} has logged in successfully as a User!")
-                            # gTTS code - next 3 lines
                             tts = gTTS(text=f'Hello {username}', lang=language, slow=False)
                             tts.save(f'{username}.mp3')
                             play_and_cleanup_audio(f'{username}.mp3')
                             logging.info(f"{username} has logged in successfully as a User!")
-                            main_menu(role="user")
-                            return  # Exit after successful login (exit from login function)
+                            main_menu(role="user", current_user=username)
+                            return
 
-                # Incorrect password
-                print(Fore.RED + "Wrong Password. Please try again." )
+                print(Fore.RED + "Wrong Password. Please try again.")
                 password_attempts += 1
 
-            # If the password attempts are exceeded
             print(
-                Fore.RED + f"Too many failed password attempts for user: {username} \n{username} Account is locked. Please contact an admin" )
+                Fore.RED + f"Too many failed password attempts for user: {username} \n{username} Account is locked. Please contact an admin")
             for u in user:
                 if u["Username"] == username:
                     u["Active"] = False
             with open("../users_data.json", "w") as out_file:
                 json.dump(user, out_file, indent=6)
             logging.warning(f"Too many failed password attempts for user: {username}")
-            login()  # Exit after failed password attempts
+            login()
 
         except ValueError:
-            print(Fore.RED + "Invalid Input" )
+            print(Fore.RED + "Invalid Input")
             continue
 
 
@@ -424,7 +556,7 @@ def reset_password():
 
 
 # Admin menu when admin is logged in
-def main_menu(role):
+def main_menu(role, current_user):
 
     # Define menu options by role
     admin_options = {
@@ -440,14 +572,15 @@ def main_menu(role):
         "10": ("Sort students by Num of Registered Course - Selection Sort", sort_course),
         "11": ("Search for a student by ID or Name", search),
         "12": ("Search Student ID by range", student_range),
-        "13": ("Filter Students by Year of Study", filter_students),
-        "14": ("Import student data from CSV", import_csv),
-        "15": ("Export student data to CSV", export),
-        "16": ("Generate Student Distribution by Year chart", generate_distribution_chart),
-        "17": ("Manage Users", manage_users_menu),
-        "18": ("Manage Student Request", manage_request_menu),
-        "19": ("Chatbot", chatbot_loop),
-        "20": ("Logout", login),
+        "13": ("View Student's Course Registration History", view_student_history),
+        "14": ("Filter Students by Year of Study", filter_students),
+        "15": ("Import student data from CSV", import_csv),
+        "16": ("Export student data to CSV", export),
+        "17": ("Generate Student Distribution by Year chart", generate_distribution_chart),
+        "18": ("Manage Users", manage_users_menu),
+        "19": ("Manage Student Request", manage_request_menu),
+        "20": ("Chatbot", chatbot_loop),
+        "21": ("Logout", login),
         "0": ("Exit the program", lambda: exit())
     }
 
@@ -457,7 +590,8 @@ def main_menu(role):
         "3": ("Add Student Request", add_student_request),
         "4": ("Chatbot", chatbot_loop),
         "5": ("Reset Password", reset_password),
-        "6": ("Logout", login),
+        "6": ("Register Face ID", lambda: register_face(current_user)),
+        "7": ("Logout", login),
         "0": ("Exit the program", lambda: exit())
     }
 
@@ -481,7 +615,7 @@ def main_menu(role):
             logging.warning(f"Invalid menu option entered for {role}.")
 
 # Menu to manage users
-def manage_users_menu():
+def manage_users_menu(current_user):
     print(
         Fore.MAGENTA + "--- Student Course Registration System --- \n"  +
         Fore.BLUE + "--- Manage Users --- \n" + Style.RESET_ALL +
@@ -495,7 +629,7 @@ def manage_users_menu():
 
     choice = input(Fore.CYAN + "Enter your choice: " +Style.RESET_ALL)
     if choice == "1":
-        main_menu(role="admin")
+        main_menu(role="admin", current_user=current_user)
     elif choice == "2":
         manage_request_menu()
     elif choice == "3":
@@ -512,7 +646,7 @@ def manage_users_menu():
         print(Fore.RED + "Invalid Option, Please enter an input from 0-4 \n")
         logging.warning(f"Invalid menu option entered")
 
-def manage_request_menu():
+def manage_request_menu(current_user):
     print(
         Fore.MAGENTA + "--- Student Course Registration System --- \n"  +
         Fore.BLUE + "--- Manage Student Request --- \n" + Style.RESET_ALL +
@@ -520,18 +654,24 @@ def manage_request_menu():
         "2: Display All Student Request \n"
         "3: Add Student Request \n"
         "4: Process Next Student Requests \n"
+        "5: Undo Last Request Action \n"
+        "6: Redo Last Request Action \n"
         "0: Exit the program"
     )
 
     choice = input(Fore.CYAN + "Enter your choice: " +Style.RESET_ALL)
     if choice == "1":
-        main_menu(role="admin")
+        main_menu(role="admin", current_user=current_user)
     elif choice == "2":
         display_student_requests()
     elif choice == "3":
         add_student_request()
     elif choice == "4":
         process_student_request()
+    elif choice == "5":
+        undo_request()
+    elif choice == "6":
+        redo_request()
     elif choice == "0":
         print(Fore.RED + "Exiting the programme...")
         logging.info(f"Admin has exited the programme")
@@ -665,20 +805,65 @@ def add_student_request():
     # Create request and add to priority queue
     new_request = StudentRequest(student_id, request_type, priority_level, request_details, timestamp)
     heapq.heappush(request_queue, new_request)
+
+    # Add to undo stack and clear redo stack
+    undo_stack.append(('add', new_request))
+    redo_stack.clear()
+
     print(Fore.GREEN + "Request successfully added.")
 
-    with open("student_requests.json", "w") as out_file:
+    # Save updated queue
+    with open("data/student_requests.json", "w") as out_file:
         json.dump([req.to_dict() for req in request_queue], out_file, indent=6)
 
 def process_student_request():
     if request_queue:
         next_request = heapq.heappop(request_queue)
+        undo_stack.append(('process', next_request))
+        redo_stack.clear()
         print(Fore.YELLOW + "Processing next request:")
         print(next_request)
-        print(f"Total Student Requests: {len(request_queue)}\n")
-        logging.info(f"Student request has been processed")
     else:
         print(Fore.RED + "No requests to process.\n")
+
+def undo_request():
+    if not undo_stack:
+        print(Fore.YELLOW + "Nothing to undo.")
+        return
+
+    action, request = undo_stack.pop()
+
+    if action == 'add':
+        try:
+            request_queue.remove(request)
+            print(Fore.GREEN + "Undo successful: Removed recently added request.")
+            redo_stack.append(('add', request))
+        except ValueError:
+            print(Fore.RED + "Request not found in queue.")
+    elif action == 'process':
+        heapq.heappush(request_queue, request)
+        print(Fore.GREEN + "Undo successful: Restored last processed request.")
+        redo_stack.append(('process', request))
+
+
+def redo_request():
+    if not redo_stack:
+        print(Fore.YELLOW + "Nothing to redo.")
+        return
+
+    action, request = redo_stack.pop()
+
+    if action == 'add':
+        heapq.heappush(request_queue, request)
+        print(Fore.GREEN + "Redo successful: Re-added request.")
+        undo_stack.append(('add', request))
+    elif action == 'process':
+        try:
+            request_queue.remove(request)
+            print(Fore.GREEN + "Redo successful: Re-processed request.")
+            undo_stack.append(('process', request))
+        except ValueError:
+            print(Fore.RED + "Request not found for redo.")
 
 
 # Bubble Sort - Ascending/Descending
@@ -1056,7 +1241,7 @@ def add_student():
     logging.info(f"New student added: ID: {student_id}, Name: {student_name}, Email: {email}, Course: {courses}, Year: {year}, Status: {status}")
     print(Fore.GREEN + f"Student {student_name} added successfully. \n")
 
-    out_file = open("students_data.json", "w")
+    out_file = open("data/students_data.json", "w")
 
     json.dump(students, out_file, indent=6)
 
@@ -1090,7 +1275,7 @@ def remove_student_by_id():
         except ValueError:
             print(Fore.RED + "Invalid input. Please enter a valid Student ID.")
 
-    out_file = open("students_data.json", "w")
+    out_file = open("data/students_data.json", "w")
 
     json.dump(students, out_file, indent=6)
 
@@ -1145,7 +1330,7 @@ def enroll_student():
                     student["Courses"].append(course)
                     print(Fore.GREEN + f"Student {student['Student Name']}, ID: {student_id} has been successfully enrolled in {course}.")
                     logging.info(f"Student {student['Student Name']}, ID: {student_id} enrolled in {course}")
-                    with open("students_data.json", "w") as out_file:
+                    with open("data/students_data.json", "w") as out_file:
                         json.dump(students, out_file, indent=6)
 
         except ValueError:
@@ -1203,12 +1388,22 @@ def remove_course():
                     student["Courses"].remove(course)
                     print(Fore.GREEN + f"Student {student['Student Name']}, ID: {student_id} has been successfully removed from {course}." )
                     logging.info(f"Student {student['Student Name']}, ID: {student_id} removed from {course}")
-                    with open("students_data.json", "w") as out_file:
+                    with open("data/students_data.json", "w") as out_file:
                         json.dump(students, out_file, indent=6)
 
         except ValueError:
             print(Fore.RED + "Invalid Student ID. Please enter a valid student ID.")
 
+
+def view_student_history():
+    student_id = input("Enter Student ID to view history: ")
+    student_obj = next((s for s in students if isinstance(s, Student) and str(s.student_id) == student_id), None)
+
+    if not student_obj:
+        print(Fore.RED + "Student not found or not an object-based student.")
+        return
+
+    student_obj.history.display_history()
 
 # Function to display all users
 def display_all_users():
@@ -1279,7 +1474,7 @@ def add_users():
 
     print(Fore.GREEN + f"You have successfully added {username}")
 
-    out_file = open("user_data.json", "w")
+    out_file = open("data/user_data.json", "w")
 
     json.dump(user, out_file, indent=6)
 
