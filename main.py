@@ -370,8 +370,6 @@ def register_face(username):
 
 # Login function
 def login():
-    load_data()
-
     # Infinite username checking loop
     while True:
         try:
@@ -1662,4 +1660,5 @@ def chatbot_loop():
         print(Fore.GREEN + response + Style.RESET_ALL)
 
 if __name__ == "__main__":
+    load_data()
     login()
