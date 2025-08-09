@@ -7,18 +7,7 @@
                   "IT101"
             ],
             "Year": 1,
-            "Status": true
-      },
-      {
-            "Student ID": 10045,
-            "Student Name": "Johan Power",
-            "Email": "johan.pow@poly.edu",
-            "Courses": [
-                  "IT111",
-                  "SF102"
-            ],
-            "Year": 2,
-            "Status": true
+            "Status": "Full-Time"
       },
       {
             "Student ID": 10002,
@@ -31,7 +20,7 @@
                   "IT200"
             ],
             "Year": 1,
-            "Status": true
+            "Status": "Full-Time"
       },
       {
             "Student ID": 10003,
@@ -43,18 +32,38 @@
                   "CS500"
             ],
             "Year": 3,
-            "Status": false
+            "Status": "Full-Time"
       },
       {
             "Student ID": 10005,
             "Student Name": "Cristiano Ronaldo",
             "Email": "crstiano@gmail.com",
             "Courses": [
-                  "IT100",
-                  "SF209"
+                  "IT100"
             ],
             "Year": 3,
-            "Status": false
+            "Status": "Full-Time"
+      },
+      {
+            "Student ID": 10033,
+            "Student Name": "Kathy Tan",
+            "Email": "kathy@gmail.com",
+            "Courses": [
+                  "SF100"
+            ],
+            "Year": 2,
+            "Status": "Full-Time"
+      },
+      {
+            "Student ID": 10045,
+            "Student Name": "Johan Power",
+            "Email": "johan.pow@poly.edu",
+            "Courses": [
+                  "IT111",
+                  "SF102"
+            ],
+            "Year": 2,
+            "Status": "Full-Time"
       },
       {
             "Student ID": 10088,
@@ -65,16 +74,6 @@
                   "IT100"
             ],
             "Year": 3,
-            "Status": true
-      },
-      {
-            "Student ID": 10033,
-            "Student Name": "Kathy Tan",
-            "Email": "kathy@gmail.com",
-            "Courses": [
-                  "SF100"
-            ],
-            "Year": 2,
-            "Status": true
+            "Status": "Full-Time"
       }
 ]

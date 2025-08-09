@@ -5,7 +5,7 @@ import logging
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # Suppresses INFO and WARNING logs for FaceID
 import re
-from collections import Counter
+from collections import Counter, defaultdict
 import heapq
 import matplotlib.pyplot as plt
 import numpy as np
@@ -19,7 +19,13 @@ from datetime import datetime
 import google.generativeai as genai
 from deepface import DeepFace
 import cv2
-
+import smtplib
+from email.message import EmailMessage
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak, Image
+from reportlab.lib.pagesizes import A4
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet
+from graphviz import Digraph
 
 # Language for gTTS
 language = "en"
@@ -36,6 +42,14 @@ init(autoreset=True)
 UPLOAD_FOLDER = '/faces'
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
+
+
+# Predefined SMTP config
+MAIL_SERVER = 'smtp.gmail.com'
+MAIL_PORT = 587
+MAIL_USERNAME = 'cropzyssp@gmail.com'
+MAIL_PASSWORD = 'wivz gtou ftjo dokp'
+MAIL_USE_TLS = True
 
 # Student Class
 class Student:
@@ -92,21 +106,33 @@ class Student:
 # StudentRequest Class
 
 class StudentRequest:
-    def __init__(self, student_id, request_type, priority_level, request_details, timestamp):
+    def __init__(self, student_id, request_type, priority, details, timestamp):
         self.student_id = student_id
         self.request_type = request_type
-        self.priority_level = priority_level
-        self.request_details = request_details
-        self.timestamp = timestamp  # datetime object
-
-    def __lt__(self, other):
-        # Lower priority_level = higher priority; if equal, compare timestamp
-        if self.priority_level == other.priority_level:
-            return self.timestamp < other.timestamp
-        return self.priority_level < other.priority_level
+        self.priority = priority
+        self.details = details
+        self.timestamp = timestamp
 
     def __str__(self):
-        return f"ID: {self.student_id}, Type: {self.request_type}, Priority: {self.priority_level}, Time: {self.timestamp}, Details: {self.request_details}"
+        return (
+            f"Student ID: {self.student_id}\n"
+            f"Request Type: {self.request_type}\n"
+            f"Priority: {self.priority} ({self.priority})\n"
+            f"Details: {self.details}\n"
+            f"Timestamp: {self.timestamp.strftime('%Y-%m-%d %H:%M:%S')}"
+        )
+
+    def __lt__(self, other):
+        return self.priority < other.priority
+
+    def to_dict(self):
+        return {
+            "student_id": self.student_id,
+            "request_type": self.request_type,
+            "priority": self.priority,
+            "details": self.details,
+            "timestamp": self.timestamp.strftime("%Y-%m-%d %H:%M:%S")
+        }
 
 # Initialize priority queue
 request_queue = []
@@ -137,18 +163,71 @@ class CourseHistoryList:
         if not self.head:
             print(Fore.YELLOW + "No course history available.")
             return
-        print(Fore.CYAN + "\nCourse Registration History:")
+        print(Fore.CYAN + "Course Registration History:")
         current = self.head
         while current:
-            print(f"{current.timestamp.strftime('%Y-%m-%d %H:%M:%S')} - {current.action.upper()} {current.course_code}")
+            print(f"{current.timestamp.strftime('%Y-%m-%d %H:%M:%S')} - {current.action.upper()} {current.course_code} \n")
             current = current.next
 
-# Empty student list to start from scratch
+histories = defaultdict(CourseHistoryList)
+
+class StudentBSTNode:
+    def __init__(self, student):
+        self.student = student
+        self.left = None
+        self.right = None
+
+class StudentBST:
+    def __init__(self):
+        self.root = None
+
+    def insert(self, student):
+        def _insert(node, student):
+            if not node:
+                return StudentBSTNode(student)
+            if student["Student ID"] < node.student["Student ID"]:
+                node.left = _insert(node.left, student)
+            else:
+                node.right = _insert(node.right, student)
+            return node
+        self.root = _insert(self.root, student)
+
+    def search(self, student_id):
+        def _search(node, student_id):
+            if not node:
+                return None
+            if student_id == node.student["Student ID"]:
+                return node.student
+            elif student_id < node.student["Student ID"]:
+                return _search(node.left, student_id)
+            else:
+                return _search(node.right, student_id)
+        return _search(self.root, student_id)
+
+    def inorder_traversal(self):
+        result = []
+        def _inorder(node):
+            if not node:
+                return
+            _inorder(node.left)
+            result.append(node.student)
+            _inorder(node.right)
+        _inorder(self.root)
+        return result
+
+student_bst = StudentBST()
+
+def rebuild_bst():
+    global student_bst
+    student_bst = StudentBST()
+    for s in students:
+        student_bst.insert(s)
+
+# Empty student list
 # students = [ ]
 
 
 # Sample student list for testing and demonstration
-# Comment away if not needed
 students = [
     {
         "Student ID": 10001,
@@ -259,9 +338,9 @@ def load_data():
                     request = StudentRequest(
                         item["student_id"],
                         item["request_type"],
-                        item["priority_level"],
-                        item["request_details"],
-                        datetime.strptime(item["timestamp"], "%Y-%m-%d %H:%M:%S")
+                        item["priority"],
+                        item["details"],
+                        datetime.fromisoformat(item["timestamp"])
                     )
                     request_queue.append(request)
                 print(Fore.GREEN + f"Successfully loaded {len(request_queue)} request(s) from student_requests.json.\n")
@@ -368,6 +447,32 @@ def register_face(username):
     cv2.imwrite(face_path, frame)
     print(Fore.GREEN + f"✅ Face image saved as '{face_path}'")
 
+#email function
+def send_email(subject, body, to_email, attachment_path=None):
+    try:
+        msg = EmailMessage()
+        msg['Subject'] = subject
+        msg['From'] = MAIL_USERNAME
+        msg['To'] = to_email
+        msg.set_content(body)
+
+        # Attach file if provided
+        if attachment_path:
+            with open(attachment_path, 'rb') as f:
+                file_data = f.read()
+                file_name = attachment_path.split('/')[-1]
+            msg.add_attachment(file_data, maintype='application', subtype='pdf', filename=file_name)
+
+        with smtplib.SMTP(MAIL_SERVER, MAIL_PORT) as server:
+            if MAIL_USE_TLS:
+                server.starttls()
+            server.login(MAIL_USERNAME, MAIL_PASSWORD)
+            server.send_message(msg)
+
+        print(Fore.GREEN + f"Email sent successfully to {to_email} \n")
+
+    except Exception as e:
+        print(Fore.RED + f"Failed to send email: {e}")
 # Login function
 def login():
     # Infinite username checking loop
@@ -418,10 +523,10 @@ def login():
 
                     if admin[username] == hashed_pw_input:
                         print(Fore.GREEN + f"{username} has logged in successfully as an Admin!\n")
-                        tts = gTTS(text=f'Hello {username}', lang=language, slow=False)
-                        tts.save(f'{username}.mp3')
-                        play_and_cleanup_audio(f'{username}.mp3')
-                        logging.info(f"{username} has logged in successfully as an Admin!")
+                        # tts = gTTS(text=f'Hello {username}', lang=language, slow=False)
+                        # tts.save(f'{username}.mp3')
+                        # play_and_cleanup_audio(f'{username}.mp3')
+                        # logging.info(f"{username} has logged in successfully as an Admin!")
                         main_menu(role="admin", current_user=username)
                         return
                     else:
@@ -571,14 +676,15 @@ def main_menu(role, current_user):
         "11": ("Search for a student by ID or Name", search),
         "12": ("Search Student ID by range", student_range),
         "13": ("View Student's Course Registration History", view_student_history),
-        "14": ("Filter Students by Year of Study", filter_students),
-        "15": ("Import student data from CSV", import_csv),
-        "16": ("Export student data to CSV", export),
-        "17": ("Generate Student Distribution by Year chart", generate_distribution_chart),
-        "18": ("Manage Users", manage_users_menu),
-        "19": ("Manage Student Request", manage_request_menu),
-        "20": ("Chatbot", chatbot_loop),
-        "21": ("Logout", login),
+        "14": ("Binary Search Tree", visualize_bst),
+        "15": ("Filter Students by Year of Study", filter_students),
+        "16": ("Import student data from CSV", import_csv),
+        "17": ("Export student data to CSV", export),
+        "18": ("Generate Student Distribution by Year chart", generate_distribution_chart),
+        "19": ("Manage Users", manage_users_menu),
+        "20": ("Manage Student Request", lambda: manage_request_menu(current_user)),
+        "21": ("Chatbot", chatbot_loop),
+        "22": ("Logout", login),
         "0": ("Exit the program", lambda: exit())
     }
 
@@ -708,6 +814,103 @@ def dashboard():
 
     print(Fore.CYAN + "\nDashboard:" + Style.RESET_ALL)
     print(tabulate(dashboard_data, headers=["Category", "Value"], tablefmt="fancy_grid"))
+    plot_students_per_course_to_file(students, filename="course_distribution.png")
+
+    report_input = input("Would you like to generate a PDF report and send it via email? [Y/N]: ").upper()
+    if report_input == 'Y':
+        email_input = input('Please enter email: ')
+        filename = "dashboard_report.pdf"
+        generate_pdf_report(filename)
+        send_email(
+            subject="Student Dashboard Report",
+            body="Please find the attached PDF report for student dashboard analytics.",
+            to_email=email_input,
+            attachment_path=filename
+        )
+    else:
+        return
+
+def plot_students_per_course_to_file(students, filename="course_distribution.png"):
+    course_counts = defaultdict(int)
+    for student in students:
+        for course in student["Courses"]:
+            course_counts[course] += 1
+
+    sorted_courses = sorted(course_counts.items())
+    courses = [course for course, _ in sorted_courses]
+    counts = [count for _, count in sorted_courses]
+
+    plt.figure(figsize=(10, 6))
+    plt.bar(courses, counts)
+    plt.xlabel('Courses')
+    plt.ylabel('Number of Students')
+    plt.title('Total Number of Students per Course')
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.grid(axis='y', linestyle='--', alpha=0.7)
+
+    plt.savefig(filename)   # Save as file for PDF use
+    plt.show()              # <-- This line shows the graph window
+    plt.close()
+
+def generate_pdf_report(filename="dashboard_report.pdf"):
+    total_students = len(students)
+    full_time = sum(1 for student in students if student['Status'])
+    part_time = total_students - full_time
+
+    all_courses = [course for student in students for course in student['Courses']]
+    course_counts = Counter(all_courses)
+    most_common_course = course_counts.most_common(1)
+    most_common_course_name = most_common_course[0][0] if most_common_course else "No Courses"
+
+    dashboard_data = [
+        ["Total Number of Students", total_students],
+        ["Number of Full-Time Students", full_time],
+        ["Number of Part-Time Students", part_time],
+        ["Most Common Course Enrolled", most_common_course_name],
+        ["Total Number of Pending Requests", len(request_queue)]
+    ]
+
+    # Prepare chart image file
+    chart_filename = "course_distribution.png"
+    plot_students_per_course_to_file(students, chart_filename)
+
+    # PDF setup
+    doc = SimpleDocTemplate(filename, pagesize=A4)
+    styles = getSampleStyleSheet()
+    elements = []
+
+    # Title
+    elements.append(Paragraph("Student Dashboard Report", styles['Title']))
+    elements.append(Spacer(1, 12))
+
+    # Timestamp
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    elements.append(Paragraph(f"Generated on: {timestamp}", styles['Normal']))
+    elements.append(Spacer(1, 12))
+
+    # Table
+    table = Table([["Category", "Value"]] + dashboard_data, colWidths=[250, 200])
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 12),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+    ]))
+
+    elements.append(table)
+
+    # Add page break and chart image
+    elements.append(PageBreak())
+    elements.append(Paragraph("Course Distribution Chart", styles['Heading2']))
+    elements.append(Spacer(1, 12))
+    elements.append(Image(chart_filename, width=450, height=300))
+
+    doc.build(elements)
+
 
 def display_student_requests():
     if not request_queue:
@@ -723,13 +926,22 @@ def display_student_requests():
         table.append([
             req.student_id,
             req.request_type,
-            req.priority_level,
+            req.priority,
             req.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
-            req.request_details
+            req.details
         ])
     print(f"Total Student Requests: {len(request_queue)}")
+
+    high = sum(1 for req in request_queue if req.priority == 1)
+    medium = sum(1 for req in request_queue if req.priority == 2)
+    low = sum(1 for req in request_queue if req.priority == 3)
+
+    print(f"Number Of High Priority Student Requests: {high}")
+    print(f"Number Of Medium Priority Student Requests: {medium}")
+    print(f"Number Of Low Priority Student Requests: {low}")
     headers = ["Student ID", "Request Type", "Priority", "Timestamp", "Details"]
     print(tabulate(table, headers=headers, tablefmt="fancy_grid"))
+    plot_studentreq_priority()
 
     # Filtering logic
     filter_col = input(Fore.CYAN + 'Select a column to filter by: ').strip()
@@ -738,12 +950,12 @@ def display_student_requests():
         filter_value = input("Enter the Request Type to filter (e.g., Appeal, Drop Course): ").strip().lower()
         filtered = [req for req in sorted_requests if req.request_type.lower() == filter_value]
 
-    elif filter_col.lower() == 'priority level':
+    elif filter_col.lower() == 'priority':
         try:
             level = int(input("Enter Priority Level to Filter [1 = High, 2 = Medium, 3 = Low]: "))
             if level not in [1, 2, 3]:
                 raise ValueError
-            filtered = [req for req in sorted_requests if req.priority_level == level]
+            filtered = [req for req in sorted_requests if req.priority == level]
         except ValueError:
             print(Fore.RED + "Invalid priority level.")
             return
@@ -758,14 +970,37 @@ def display_student_requests():
             [
                 req.student_id,
                 req.request_type,
-                req.priority_level,
+                req.priority,
                 req.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
-                req.request_details
+                req.details
             ] for req in filtered
         ]
         print(tabulate(filtered_table, headers=headers, tablefmt="fancy_grid"))
     else:
         print(Fore.RED + "No matching results found.")
+
+def plot_studentreq_priority():
+    if not request_queue:
+        print(Fore.GREEN + "No data to plot. The request queue is empty.")
+        return
+
+    # Count priorities
+    high = sum(1 for req in request_queue if req.priority == 1)
+    medium = sum(1 for req in request_queue if req.priority == 2)
+    low = sum(1 for req in request_queue if req.priority == 3)
+
+    # Prepare data
+    priorities = ['High', 'Medium', 'Low']
+    counts = [high, medium, low]
+
+    # Plotting
+    plt.figure(figsize=(6, 4))
+    plt.bar(priorities, counts)
+    plt.title("Student Requests by Priority Level")
+    plt.xlabel("Priority")
+    plt.ylabel("Number of Requests")
+    plt.tight_layout()
+    plt.show()
 
 def add_student_request():
     student_id = input("Enter Student ID: ").strip()
@@ -1326,6 +1561,7 @@ def enroll_student():
                         continue
 
                     student["Courses"].append(course)
+                    histories[student_id].add_record(course, "enrolled")
                     print(Fore.GREEN + f"Student {student['Student Name']}, ID: {student_id} has been successfully enrolled in {course}.")
                     logging.info(f"Student {student['Student Name']}, ID: {student_id} enrolled in {course}")
                     with open("data/students_data.json", "w") as out_file:
@@ -1384,6 +1620,7 @@ def remove_course():
                         continue
 
                     student["Courses"].remove(course)
+                    histories[student_id].add_record(course, "enrolled")
                     print(Fore.GREEN + f"Student {student['Student Name']}, ID: {student_id} has been successfully removed from {course}." )
                     logging.info(f"Student {student['Student Name']}, ID: {student_id} removed from {course}")
                     with open("data/students_data.json", "w") as out_file:
@@ -1394,14 +1631,20 @@ def remove_course():
 
 
 def view_student_history():
-    student_id = input("Enter Student ID to view history: ")
-    student_obj = next((s for s in students if isinstance(s, Student) and str(s.student_id) == student_id), None)
+    sid_str = input("Enter Student ID to view history: ").strip()
+    if not sid_str.isdigit():
+        print(Fore.RED + "Invalid Student ID")
+        return
+    sid = int(sid_str)
 
-    if not student_obj:
-        print(Fore.RED + "Student not found or not an object-based student.")
+    # confirm student exists in the dict-based list
+    exists = any(s["Student ID"] == sid for s in students)
+    if not exists:
+        print(Fore.RED + "Student not found")
         return
 
-    student_obj.history.display_history()
+    # show the linked-list history (prints "No course history available." if empty)
+    histories[sid].display_history()
 
 # Function to display all users
 def display_all_users():
@@ -1648,6 +1891,26 @@ def chatbot_response(message):
 
     return (Fore.YELLOW + "Sorry, I didn't understand that. I can help with course registration, student records, requests, or user accounts."+ Style.RESET_ALL)
 
+
+def visualize_bst_text(node, level=0):
+    if node is not None:
+        # Traverse right child first (so it appears on top)
+        visualize_bst_text(node.right, level + 1)
+
+        # Print current node with indentation
+        print("     " * level + f"{node.student['Student ID']} - {node.student['Student Name']}")
+
+        # Traverse left child
+        visualize_bst_text(node.left, level + 1)
+
+
+def visualize_bst():
+    if not student_bst.root:
+        print(Fore.RED + "The BST is empty. Nothing to visualize.")
+    else:
+        print(Fore.CYAN + "\nBinary Search Tree (Student ID):\n" + Style.RESET_ALL)
+        visualize_bst_text(student_bst.root)
+
 # Loop to keep chatbot running
 def chatbot_loop():
     while True:
@@ -1661,4 +1924,5 @@ def chatbot_loop():
 
 if __name__ == "__main__":
     load_data()
+    rebuild_bst()
     login()
