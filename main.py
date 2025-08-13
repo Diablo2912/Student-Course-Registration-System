@@ -25,7 +25,6 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
-from graphviz import Digraph
 
 # Language for gTTS
 language = "en"
@@ -758,8 +757,9 @@ def manage_request_menu(current_user):
         "2: Display All Student Request \n"
         "3: Add Student Request \n"
         "4: Process Next Student Requests \n"
-        "5: Undo Last Request Action \n"
-        "6: Redo Last Request Action \n"
+        "5: Filter Request Priority \n"
+        "6: Undo Last Request Action \n"
+        "7: Redo Last Request Action \n"
         "0: Exit the program"
     )
 
@@ -773,6 +773,8 @@ def manage_request_menu(current_user):
     elif choice == "4":
         process_student_request()
     elif choice == "5":
+        filter_request_priority()
+    elif choice == "6":
         undo_request()
     elif choice == "6":
         redo_request()
@@ -1327,6 +1329,43 @@ def filter_students():
         print(tabulate(filtered_students, headers="keys", tablefmt="fancy_grid"))
     else:
         print(Fore.YELLOW + "No students found in the selected year.")
+
+def filter_request_priority():
+    if not request_queue:
+        print(Fore.YELLOW + "No requests to filter.")
+        return
+
+    try:
+        filter_priority_input = int(input("Enter request priority level to filter [1 = High, 2 = Medium, 3 = Low]: "))
+        if filter_priority_input not in [1, 2, 3]:
+            print(Fore.RED + "Invalid priority level. Please enter 1, 2, or 3.")
+            return
+    except ValueError:
+        print(Fore.RED + "Invalid level. Please enter a number.")
+        return
+
+    # Filter requests by priority
+    filtered_requests = [req for req in request_queue if req.priority == filter_priority_input]
+
+    priority_labels = {1: "High", 2: "Medium", 3: "Low"}
+    print(Fore.CYAN + f"\nAll {priority_labels.get(filter_priority_input, 'Unknown')} Priority Requests:" + Style.RESET_ALL)
+
+    if filtered_requests:
+        headers = ["Student ID", "Request Type", "Priority", "Timestamp", "Details"]
+        table = [
+            [
+                req.student_id,
+                req.request_type,
+                req.priority,
+                req.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+                req.details
+            ]
+            for req in filtered_requests
+        ]
+        print(tabulate(table, headers=headers, tablefmt="fancy_grid"))
+    else:
+        print(Fore.YELLOW + "No requests found in the selected priority level.")
+
 
 # Function to display all students and information
 def display_all_students():
