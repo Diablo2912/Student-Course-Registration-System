@@ -1,5 +1,5 @@
 # NYP Y2 S1 Data Structure and Algorithms (DSA)
-# IT2653 - Data Structure and Algorithms (DSA) Assignment 
+## IT2653 - Data Structure and Algorithms (DSA) Assignment 
 
 This combines Assignments 1 and 2.
 
